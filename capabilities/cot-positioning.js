@@ -122,7 +122,7 @@ function extractPositioning(row) {
 export default {
   name: "cot-positioning",
 
-  price: "$0.018",
+  price: "$0.021",
 
   description:
     "CFTC Commitment of Traders weekly positioning: large speculator (hedge fund) vs commercial hedger net long/short, week-over-week change, % of OI, 4-week trend, and a SPEC_LONG/SPEC_SHORT/NEUTRAL signal. Free CFTC source, updated Fridays.",

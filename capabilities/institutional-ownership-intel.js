@@ -156,7 +156,7 @@ function parseSummary(data, ticker) {
 
 export default {
   name:  "institutional-ownership-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Institutional fund holdings intelligence for US equities. Returns which funds " +

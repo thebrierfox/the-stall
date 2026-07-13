@@ -60,7 +60,7 @@ async function search(query, maxResults) {
 
 export default {
   name:  "youtube-search",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Search YouTube for videos matching a query. Returns up to 10 results with title, channel, view count, duration, and video URL. No API key required. Pair with youtube-intel for full metadata on selected videos.",

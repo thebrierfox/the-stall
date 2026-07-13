@@ -54,7 +54,7 @@ async function getCrumb() {
 
 export default {
   name:  "institutional-ownership",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Institutional and insider ownership snapshot for any US stock. Returns: (1) major holders " +

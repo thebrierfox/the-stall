@@ -66,7 +66,7 @@ function compositeSignal(fgi, btcIv) {
 
 export default {
   name:  "market-sentiment",
-  price: "$0.035",
+  price: "$0.040",
 
   description:
     "Combined crypto market sentiment signal: Crypto Fear & Greed Index (alternative.me, 0–100, 30-day trend) plus BTC and ETH Implied Volatility from Deribit options market (annualized %). Free upstream sources, no keys. Returns current FGI value, classification (Extreme Fear to Extreme Greed), 7-day FGI trend, IV trend (RISING/FALLING/FLAT), and a composite regime label (CAPITULATION_ZONE, OVERHEATED, COMPLACENT_GREED, CALM_MARKET, etc.). Use before making large DeFi positions, calibrating yield farming risk, or routing agent spend in volatile conditions.",

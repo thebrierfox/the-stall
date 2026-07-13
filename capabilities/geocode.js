@@ -68,7 +68,7 @@ function shapeReverse(r) {
 
 export default {
   name: "geocode",
-  price: "$0.014",
+  price: "$0.021",
 
   description:
     "Forward and reverse geocoding via OpenStreetMap Nominatim. Forward: convert an address or place name to latitude/longitude, bounding box, and OSM metadata. Reverse: convert lat/lon to a structured street address. Supports any location worldwide. Useful for location enrichment, address validation, coordinate lookup, and building location-aware agent flows.",

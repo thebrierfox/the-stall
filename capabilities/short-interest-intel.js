@@ -109,7 +109,7 @@ function squeezeInterpretation(label, risk) {
 
 export default {
   name:  "short-interest-intel",
-  price: "$0.012",
+  price: "$0.021",
 
   description:
     "Outstanding short interest intelligence for US equities: shares sold short, " +

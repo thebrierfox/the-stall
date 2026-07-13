@@ -17,7 +17,7 @@ const ALLOWED_MODELS = new Set(["gpt-4o-mini", "gpt-4o"]);
 
 export default {
   name:  "llm-proxy",
-  price: "$0.010",
+  price: "$0.021",
 
   description:
     "LLM inference proxy — pay USDC, get AI responses without managing API keys. Accepts a prompt and optional system instruction, forwards to OpenAI, returns the completion. Supports gpt-4o-mini (default, fast and cost-efficient) or gpt-4o (more capable). Agents that already hold USDC on Base can call this to run one-off LLM tasks without onboarding to OpenAI. Max 2,000 output tokens per call.",

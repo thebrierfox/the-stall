@@ -14,7 +14,7 @@ const UA        = "Mozilla/5.0 (compatible; the-stall/3.8; +https://intuitek.ai)
 
 export default {
   name: "polymarket-sentiment-shift",
-  price: "$0.034",
+  price: "$0.040",
 
   description:
     "Returns Polymarket prediction markets with the biggest recent probability shifts — useful for detecting sudden consensus changes on elections, crypto prices, and macro outcomes. Sorted by absolute 1-week change by default. Each result includes current probability, price change, volume, and resolution date. $0.008/call — free upstream.",

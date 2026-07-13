@@ -19,7 +19,7 @@ const TIMEOUT          = 12_000;
 
 export default {
   name:  "polymarket-intel",
-  price: "$0.034",
+  price: "$0.079",
 
   description:
     "Polymarket prediction market data. Search by topic keyword (e.g. 'bitcoin', 'election', 'fed rate') or retrieve top markets by trading volume. Returns Yes/No probabilities, volume, liquidity, price momentum, and resolution date. No API keys. Use for event risk, trading signal context, or agent decision support.",

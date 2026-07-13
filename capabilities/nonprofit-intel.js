@@ -206,7 +206,7 @@ async function modeRecent(nteeCode, stateCode) {
 
 export default {
   name:  "nonprofit-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Nonprofit financial intelligence from IRS Form 990 filings via ProPublica Nonprofit Explorer. " +

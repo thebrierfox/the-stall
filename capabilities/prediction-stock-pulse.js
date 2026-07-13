@@ -2,7 +2,7 @@
 // one x402 call. Agents routing prediction-market → equity-price represent the
 // dominant seam in x402 archive (80% signal, 6 wallets, 5 days observation).
 //
-// Individual cost: $0.006 + $0.018 = $0.024. Seam price: $0.016 (33% discount).
+// Individual cost: $0.006 + $0.018 = $0.024. Seam price: $0.021 (33% discount).
 // Upstreams: Limitless Exchange API (no key) + Yahoo Finance (no key).
 
 import limitlessMarkets from "./limitless-markets.js";

@@ -197,7 +197,7 @@ async function recentFilings(days, limit) {
 
 export default {
   name:  "merger-acquisition-intel",
-  price: "$0.020",
+  price: "$0.021",
 
   description:
     "SEC EDGAR M&A activity tracker for US public companies. " +

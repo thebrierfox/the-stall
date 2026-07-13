@@ -110,7 +110,7 @@ const GRADE_INTERP = {
 
 export default {
   name:  "revenue-growth-intel",
-  price: "$0.020",
+  price: "$0.021",
 
   description:
     "Revenue growth quality analysis for any US public company. Computes 1/3/5-year revenue CAGRs, growth consistency (coefficient of variation), acceleration vs long-run trend, gross margin direction, and operating leverage. Returns a composite letter grade (A–F) that anchors DCF growth rate assumptions. Chain after income-statements and before dcf-valuation.",

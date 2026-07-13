@@ -203,7 +203,7 @@ function pivot(results, period, limit) {
 
 export default {
   name:  "cash-flow-statement",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Full cash flow statement history for any US public stock — operating, investing, and financing " +

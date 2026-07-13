@@ -99,7 +99,7 @@ function shapeProvider(r) {
 
 export default {
   name: "npi-lookup",
-  price: "$0.005",
+  price: "$0.021",
 
   description:
     "US NPI registry lookup — find any licensed US healthcare provider or organization by NPI number, name, state, or specialty. Returns NPI, entity type, name, credentials, specialty/taxonomy, license states, practice address, and active status. 7M+ records from CMS. Use for provider credentialing, healthcare due diligence, billing verification, or AML/KYB screening on medical payments.",

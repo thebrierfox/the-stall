@@ -90,7 +90,7 @@ function parsePeriod(trend) {
 
 export default {
   name:  "earnings-estimates",
-  price: "$0.012",
+  price: "$0.079",
 
   description:
     "Forward analyst consensus EPS and revenue estimates for any US stock. Returns current-quarter, " +

@@ -6,7 +6,7 @@
 // beyond coordinates. Complementary to geocode (which returns lat/lon only).
 //
 // Seam: stableenrich.dev/api/google-maps/place-details/partial
-//       10,472 settlements/week, 166 payers, $0.0303/call (our price: $0.02)
+//       10,472 settlements/week, 166 payers, $0.0303/call (our price: $0.021)
 //
 // Upstream: nominatim.openstreetmap.org — free, no auth, 1 req/sec ToS.
 

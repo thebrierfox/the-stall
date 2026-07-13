@@ -156,7 +156,7 @@ function pivot(results, period, limit) {
 
 export default {
   name:  "balance-sheet",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Quarterly or annual balance sheet history for any US public stock. Returns cash & equivalents, " +

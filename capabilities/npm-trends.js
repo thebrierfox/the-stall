@@ -45,7 +45,7 @@ async function getDownloads(period, packages) {
 
 export default {
   name:  "npm-trends",
-  price: "$0.020",
+  price: "$0.021",
 
   description:
     "Compare npm package download trends for up to 5 packages. Returns total downloads and week-over-week trend for the requested period (last-week, last-month, last-year). Useful for evaluating package adoption before adding a dependency, comparing competing libraries (express vs fastify, react-query vs tanstack-query), or tracking whether a package is growing or declining. Free upstream: api.npmjs.org (no key required).",

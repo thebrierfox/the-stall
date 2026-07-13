@@ -145,7 +145,7 @@ function breadthSummary(ewPair, scPair, raPair, mcPair, regime) {
 
 export default {
   name:  "market-breadth",
-  price: "$0.010",
+  price: "$0.031",
   description:
     "US stock market breadth dashboard via institutional ETF-ratio breadth proxies. Measures participation across equal-weight (RSP/SPY divergence), small-caps (IWM/SPY), risk appetite (SPHB/SPLV), and mid-caps (MDY/SPY). Returns per-pair ratios, 20-day average, divergence%, 5-day momentum, and OUTPERFORMING/NEUTRAL/UNDERPERFORMING signal for each. Composite breadth_score (−100..+100) and breadth_regime (STRONGLY_BULLISH → STRONGLY_BEARISH). Use to confirm whether a market rally has broad participation or is driven by narrow mega-cap leadership. Complements sector-rotation (sector allocation) and volatility-brief (VIX regime). No API key required.",
 

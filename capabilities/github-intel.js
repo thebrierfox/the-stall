@@ -264,7 +264,7 @@ async function actionSearch(query) {
 
 export default {
   name:  "github-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "GitHub repository intelligence: stars, forks, contributors, releases, open issues, and weekly commit activity. Compare up to 4 repos side-by-side or search GitHub for repos by keyword, language, and topic. Use to evaluate library health before adopting a dependency, find the top maintainers of a project, track release cadence, or benchmark competing frameworks. Authenticated (5000 req/hr). Actions: repo | contributors | releases | issues | commit_activity | compare | search.",

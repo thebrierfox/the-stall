@@ -251,7 +251,7 @@ async function handleTopCharts({ category = "all", chart = "free", limit = 25 })
 
 export default {
   name:  "app-store-intel",
-  price: "$0.010",
+  price: "$0.021",
 
   description:
     "iOS App Store competitive intelligence: search apps by keyword, look up a specific app's profile (ratings, freshness, install tier, release notes), or fetch top-charts for a category (finance, productivity, games, etc.). Free iTunes API, no auth required. Covers the App Store gap in the developer-ecosystem cluster alongside npm-trends, pypi-intel, and github-intel.",

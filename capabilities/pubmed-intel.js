@@ -239,7 +239,7 @@ async function articleDetail(pmid) {
 
 export default {
   name: "pubmed-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "PubMed biomedical literature search and article retrieval across 36M+ NCBI/MEDLINE citations. search mode: find papers by keyword with optional year range and article type filter (clinical_trial, review, meta_analysis, systematic_review, randomized_trial, case_report) — returns PMID, title, authors, journal, date, DOI. article mode: full article details for a PMID — structured abstract, author affiliations, MeSH terms, keywords, DOI, PMC open-access link. No API key. Covers all biomedical and life science literature since 1946.",

@@ -241,7 +241,7 @@ async function recentFilings(days, minAmountMillions, limit) {
 
 export default {
   name:  "vc-funding-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Private fundraising round tracker via SEC Form D EDGAR filings. " +

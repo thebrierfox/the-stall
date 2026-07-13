@@ -99,7 +99,7 @@ function classifyReaction(surpPct, movePct) {
 
 export default {
   name:  "earnings-reaction",
-  price: "$0.025",
+  price: "$0.079",
 
   description:
     "Stock price reaction to past earnings events for any US equity. Returns report-day and next-day price move % for each recent quarterly earnings date, paired with the EPS beat/miss magnitude and reaction class (beat_and_up, beat_selloff, miss_and_down, miss_rally, neutral). Identifies contrarian signals where price moved opposite to the EPS surprise. Pairs with earnings-calendar (upcoming dates) and earnings-surprises (EPS history). Yahoo Finance, no API key.",

@@ -73,7 +73,7 @@ const ACTION_LABELS = {
 
 export default {
   name:  "analyst-upgrades",
-  price: "$0.025",
+  price: "$0.079",
 
   description:
     "Analyst rating change history (upgrades, downgrades, initiations) for any US stock. Returns each firm, action, from/to grade, and date — up to 365 days back. Computes net sentiment (upgrades minus downgrades): positive = bullish momentum building. Pairs with analyst-ratings (current consensus) and earnings-estimates (forward EPS). Yahoo Finance, no API key.",

@@ -104,7 +104,7 @@ function fedImplication(coreYoY, trend) {
 
 export default {
   name: "inflation-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "US CPI inflation: headline (all-items), core (less food & energy), energy, and food — MoM and YoY % changes, ACCELERATING/DECELERATING/STABLE trend signal, and Fed policy implication. BLS data via FRED public CSV, no API key needed. Pairs with fomc-tracker, credit-spreads, treasury-yields, sector-rotation.",

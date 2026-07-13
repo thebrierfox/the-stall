@@ -66,7 +66,7 @@ async function fetchData(ticker, retry = true) {
 
 export default {
   name:  "price-target-consensus",
-  price: "$0.010",
+  price: "$0.031",
 
   description:
     "Analyst price target consensus for any US public company: current price, 12-month consensus target (mean, median, high, low), buy/hold/sell analyst count, implied upside %, and recommendation trend. Pulled from Yahoo Finance — no API key required.",

@@ -65,7 +65,7 @@ async function fetchPlaylist(url, limit) {
 
 export default {
   name:  "youtube-playlist",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Fetch up to 50 videos from a YouTube playlist. Returns title, channel, duration, view count, and video URL for each entry. No API key required. Pair with youtube-intel to analyze individual videos from the list.",

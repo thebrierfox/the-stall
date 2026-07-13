@@ -72,7 +72,7 @@ async function searchRepos({ language, since, limit, topic }) {
 
 export default {
   name:  "github-trending",
-  price: "$0.006",
+  price: "$0.021",
   description: "Top trending GitHub repositories by star velocity — new repos gaining the most stars today, this week, or this month. Filter by programming language and/or topic tag.",
   inputSchema: {
     type: "object",

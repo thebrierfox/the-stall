@@ -202,7 +202,7 @@ function buildSummary(tx, receipt, transfers, chainName) {
 
 export default {
   name:  "tx-intel",
-  price: "$0.014",
+  price: "$0.031",
 
   description:
     "Decode and explain any EVM transaction — in one x402 payment. Returns: transaction status, type (ETH transfer / ERC20 transfer / swap / approval / contract call), human-readable summary, token transfers parsed from logs, gas cost, block context, and explorer URL. Collapses the observed tx-explainer + onesource/block agent seam (18 wallets, 8-day persistence). Supports Base (default), Ethereum, Arbitrum, Optimism, Polygon, Avalanche, BSC. Free upstream: DRPC + public RPC nodes. $0.006/call — 40% below the x402.ottoai.services tx-explainer.",

@@ -247,7 +247,7 @@ function compositeSignal(unrate, payems, cpi, coreCpi, retail, indpro) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default {
   name: "economic-momentum",
-  price: "$0.018",
+  price: "$0.021",
 
   description:
     "Tracks 6 key US economic indicators (unemployment, nonfarm payrolls, CPI, core CPI, retail sales, industrial production) from FRED and classifies each as accelerating/stable/decelerating. Returns a composite momentum signal (HOT/WARM/GOLDILOCKS/COOLING/COLD) for sector rotation and rate-path modeling. Free FRED data, no API key required.",

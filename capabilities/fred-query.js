@@ -148,7 +148,7 @@ function computeStats(observations) {
 
 export default {
   name:  "fred-query",
-  price: "$0.008",
+  price: "$0.021",
 
   description:
     "Pull any FRED (St. Louis Fed) economic series by ID. Returns recent observations, trend, and summary stats. Covers 800,000+ series: M2, Fed balance sheet, truck tonnage, payrolls, yields, CPI, consumer credit, and more. Free public data, no API key.",

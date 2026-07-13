@@ -336,7 +336,7 @@ async function recentInsiderBuys(days, minUsd, limit) {
 
 export default {
   name:  "insider-trading-intel",
-  price: "$0.015",
+  price: "$0.021",
   description:
     "SEC Form 4 insider transaction intelligence. Mode get_insider_trades: Form 4 " +
     "filings for a ticker in the last N days — insider name, role, buy/sell type, " +

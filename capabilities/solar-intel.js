@@ -6,7 +6,7 @@
 // agricultural planning, and EV charging optimization.
 //
 // Seam: stableenrich.dev/api/google-maps/solar/rgb-image
-//       553 settlements/month, 27 payers, $0.0290/call (our price: $0.020)
+//       553 settlements/month, 27 payers, $0.0290/call (our price: $0.021)
 //
 // Upstream: Open-Meteo (open-meteo.com) — free, no API key, unlimited use.
 // Geocoding: Open-Meteo Geocoding API — free, no auth.

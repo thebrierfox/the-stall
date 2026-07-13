@@ -215,7 +215,7 @@ async function agencyMode(agencyName, days, limit) {
 
 export default {
   name:  "government-contract-intel",
-  price: "$0.015",
+  price: "$0.021",
 
   description:
     "Federal government contract award tracker via USASpending.gov (no API key). " +

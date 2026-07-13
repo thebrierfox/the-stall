@@ -125,7 +125,7 @@ function rsiSignal(rsi) {
 
 export default {
   name:  "equity-sentiment",
-  price: "$0.035",
+  price: "$0.040",
 
   description:
     "Stock market Fear & Greed composite (equity sentiment). Four signals: VIX vs 90-day percentile, SPY vs 200-day moving average, US high-yield credit spread vs 90-day range (FRED BAMLH0A0HYM2), SPY RSI-14. Returns composite score 0–100 (0=extreme greed, 100=extreme fear) with regime label and per-signal breakdown. Distinct from market-sentiment (crypto). Use before sizing positions, adjusting portfolio risk, or routing capital. Free sources, no API keys.",

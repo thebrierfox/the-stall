@@ -11,7 +11,7 @@
 //   lookup_user   — full profile (followers, bio, verification) by @username  — upstream $0.005
 //   search_tweets — keyword/filter tweet search, returns 10 results            — upstream $0.010
 //
-// STALL price: $0.015 (50–67% gross margin depending on action)
+// STALL price: $0.040 (50–67% gross margin depending on action)
 
 import { privateKeyToAccount } from "viem/accounts";
 import { x402Client } from "@x402/core/client";

@@ -82,7 +82,7 @@ function rotationSignal(rel1m, rel5d) {
 
 export default {
   name:  "sector-rotation",
-  price: "$0.040",
+  price: "$0.434",
 
   description:
     "S&P 500 sector rotation: relative performance of all 11 GICS sectors (XLK XLF XLE XLV XLI XLY XLP XLB XLRE XLU XLC) vs SPY benchmark. Returns 1D, 5D, 1M, and 3M absolute and relative returns, a rotation signal per sector (LEADING, CATCHING_UP, FALLING_BEHIND, LAGGING), and 1M leadership ranking. Parameterizable: sort by any timeframe. Free Yahoo Finance source, no API keys. Use for sector allocation, macro-regime interpretation, or screening rotation momentum.",

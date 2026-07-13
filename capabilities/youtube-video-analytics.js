@@ -136,7 +136,7 @@ async function fetchVideo(videoId) {
 
 export default {
   name:  "youtube-video-analytics",
-  price: "$0.015",
+  price: "$0.021",
   description:
     "Heuristic performance analysis for a single YouTube video: view velocity (views/day), " +
     "engagement rate (likes+comments/views), view-to-sub ratio, and tier: " +

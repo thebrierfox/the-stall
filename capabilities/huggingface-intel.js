@@ -190,7 +190,7 @@ async function searchDatasets({ query, task, limit }) {
 
 export default {
   name:  "huggingface-intel",
-  price: "$0.010",
+  price: "$0.021",
 
   description:
     "HuggingFace Hub intelligence: search AI models and datasets, get detailed model metadata, and find trending models by task. Returns downloads, likes, license, supported languages, pipeline task, and tags. Use to evaluate which open-source model best fits a task, compare model families (Llama vs Qwen vs Mistral), track AI research trends, or discover datasets for fine-tuning. Free upstream: HuggingFace public API (no key required).",

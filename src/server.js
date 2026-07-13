@@ -808,6 +808,35 @@ app.get("/.well-known/agent.json", (_req, res) =>
   })
 );
 
+// ── ERC-8004 agent identity card (for on-chain AI agent registry on Base) ─────
+app.get("/.well-known/erc8004.json", (_req, res) =>
+  res.json({
+    name: "The Stall",
+    description: `Domain-agnostic x402 capability chassis by IntuiTek¹. ${capabilities.length} AI-callable data services for USDC on Base mainnet.`,
+    version: PKG_VERSION,
+    agentId: "the-stall",
+    publisher: "IntuiTek¹",
+    website: BASE_URL,
+    x402Support: true,
+    x402Network: "eip155:8453",
+    active: true,
+    services: [
+      {
+        name: "The Stall MCP",
+        endpoint: `${BASE_URL}/mcp`,
+        protocol: "mcp",
+        x402: true,
+        description: `${capabilities.length} pay-per-call capabilities: stock prices, DeFi analytics, macro indicators, research synthesis, prediction markets, company intelligence, and more.`,
+      },
+    ],
+    erc8004: {
+      identityRegistry: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+      reputationRegistry: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+      chain: "eip155:8453",
+    },
+  })
+);
+
 // ── Smithery server card (skip-scan path for capability enumeration) ─────────
 app.get("/.well-known/mcp/server-card.json", (_req, res) =>
   res.json({

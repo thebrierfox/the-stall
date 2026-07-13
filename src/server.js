@@ -75,6 +75,17 @@ const BOUNCE_LOG = join(LOG_DIR, "402_bounces.jsonl");
 // W3: Bounce alert — non-seeder bounces fire immediate Telegram (hot-lead capture)
 const _SEEDER_BOUNCE_ADDR = (process.env.SEEDER_WALLET_ADDRESS || "0xf615bda54d576e757b51a6128ac8a7c67a1c3d6c").toLowerCase();
 const _NOTIFY_SH_PATH = join(process.env.HOME || "/home/aegis", "intuitek", "notify.sh");
+// R4: Warm-lead wallets identified in WARM-LEAD-TRACE (2026-07-13). When any of these
+// appear in a bounce, the alert is tagged WARM-LEAD-RETURN (high-priority return signal).
+const _WARM_LEAD_WALLETS = new Set([
+  "0x6bc8a8c059e5eccb7cf3413a60512f037632f999", // research-synthesis Jul8
+  "0xb39741f7d31e1bc80996f7b7fa1c03bf398ed030", // social-momentum x5 Jul8
+  "0xa46143911d943d957a1db7f986d5640d3e231358", // earnings-calendar Jul9
+  "0x8345418b11571b4489ebf902e90fef1d5ea05fd7", // research-synthesis Jul9
+  "0xdcb711418cae2d504490b50b1ec9f092e7869fa0", // research-synthesis Jul10
+  "0xf1e940ed56d7e8d13165ee216cd73164b3070f6f", // research-synthesis Jul11
+  "0xeb3d1b27e74aaa4ecbc9dc80d795512806de515f", // ping x2 Jul12
+]);
 
 // Async post-settlement RPC enrichment: when payer=null but tx_hash is present
 // (seeder-relay path), look up Transfer.from on-chain and write a correction entry.
@@ -241,17 +252,26 @@ function log402Bounce(req, res) {
     const xPayment = req.headers['payment-signature'] || req.headers['x-payment'] || null;
     if (!xPayment) return;
     let attempted_chain = "unknown";
+    let rawPayloadSnippet = null;
     try {
       const decoded = JSON.parse(Buffer.from(xPayment, 'base64').toString('utf8'));
-      if (decoded?.network) attempted_chain = decoded.network;
-      else if (decoded?.payload?.network) attempted_chain = decoded.payload.network;
+      // R1.3: v2 format has network in accepted[0].network or accepted.network (not at top level)
+      attempted_chain = decoded?.network
+        || decoded?.payload?.network
+        || decoded?.accepted?.network
+        || (Array.isArray(decoded?.accepted) ? decoded.accepted[0]?.network : null)
+        || "unknown";
+      // Capture raw snippet for unknown-rail bounces to enable post-hoc diagnosis
+      if (attempted_chain === "unknown") {
+        rawPayloadSnippet = JSON.stringify(decoded).slice(0, 200);
+      }
     } catch { /* not base64 JSON — leave chain as unknown */ }
     const attempted_rail = attempted_chain.startsWith("solana") ? "solana"
       : attempted_chain.startsWith("eip155") ? "evm"
       : "unknown";
     const payer = extractPayerFromHeader(xPayment);
     const seederWallet = (process.env.SEEDER_WALLET_ADDRESS || "0xf615bda54d576e757b51a6128ac8a7c67a1c3d6c").toLowerCase();
-    appendFileSync(BOUNCE_LOG, JSON.stringify({
+    const bounceEntry = {
       ts: new Date().toISOString(),
       cap: req.path,
       attempted_rail,
@@ -259,8 +279,10 @@ function log402Bounce(req, res) {
       payer: payer || null,
       is_seeder: payer ? payer.toLowerCase() === seederWallet : false,
       rejection_reason: "payment_rejected",
-    }) + "\n");
-    // W3: real-time hot-lead alert — non-seeder bounces only
+    };
+    if (rawPayloadSnippet) bounceEntry.raw_snippet = rawPayloadSnippet;
+    appendFileSync(BOUNCE_LOG, JSON.stringify(bounceEntry) + "\n");
+    // W3 + R4: real-time alert — non-seeder bounces only
     if (payer && payer.toLowerCase() !== _SEEDER_BOUNCE_ADDR) {
       try {
         let priceStr = "";
@@ -273,7 +295,10 @@ function log402Bounce(req, res) {
           }
         }
         const capName = (req.path || "").replace('/cap/', '');
-        const msg = `💡 [Bounce] ${payer.slice(0, 14)} tried ${capName}${priceStr} — max-intent lead`;
+        // R4: tag WARM-LEAD-RETURN if payer is a known warm-lead wallet
+        const isWarmReturn = _WARM_LEAD_WALLETS.has(payer.toLowerCase());
+        const tag = isWarmReturn ? "WARM-LEAD-RETURN" : "max-intent lead";
+        const msg = `💡 [Bounce] ${payer.slice(0, 14)} tried ${capName}${priceStr} — ${tag}`;
         exec(`bash '${_NOTIFY_SH_PATH}' '${msg.replace(/'/g, "")}'`, () => {});
       } catch { /* alert never throws */ }
     }

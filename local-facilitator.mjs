@@ -207,6 +207,27 @@ app.post("/settle", async (req, res) => {
   const outerPayload = extractOuterPayload(req.body, "settle");
 
   if (shouldBypass(outerPayload)) {
+    // ── CDP Canary for /cap/ping (T1 — 2026-07-13 → 2026-08-12) ──────────────
+    // Test whether the 6/26 CDP payment-method wall is still up under x402 v2.
+    // Attempt CDP settle first for ping only; fall through to EIP-3009 on failure.
+    // If CDP succeeds: wall is down → Bazaar indexing resumes for ping (log PASS).
+    // If CDP fails: wall still up → log FAIL + continue to bypass. No revenue risk.
+    const resource = outerPayload?.resource || "";
+    if (resource.includes("/cap/ping") && CDP_KEY_ID && CDP_KEY_SECRET) {
+      try {
+        const { status: cdpStatus, data: cdpData } = await proxyToCdp("/settle", req.body);
+        if (cdpData?.success) {
+          log(`[cdp-canary] PASS — CDP wall DOWN ping indexed via CDP tx=${cdpData.transaction || "?"}`);
+          return res.status(cdpStatus).json(cdpData);
+        }
+        log(`[cdp-canary] FAIL — CDP rejected ping: ${JSON.stringify(cdpData).slice(0, 140)}`);
+      } catch (e) {
+        log(`[cdp-canary] FAIL (exc) — ${e.message.slice(0, 80)}`);
+      }
+      // Fall through to EIP-3009 bypass
+    }
+    // ── end CDP canary (kill 2026-08-12) ─────────────────────────────────────
+
     if (!walletClient) {
       log("[bypass/settle] FATAL: no seeder key loaded");
       return res.json({ success: false, errorReason: "no_seeder_key_configured", transaction: "", network: "eip155:8453" });

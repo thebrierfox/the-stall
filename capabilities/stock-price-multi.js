@@ -57,10 +57,10 @@ async function fetchTicker(ticker) {
 
 export default {
   name: "stock-price-multi",
-  price: "$0.059",
+  price: "$0.295",
 
   description:
-    "Returns current US equity prices for up to 5 tickers in one call — STRC, AMD, MSTR, SLV, USO, or any NYSE/NASDAQ symbol. Each call returns price, change %, volume, day range, and 52-week range per ticker. " +
+    "Stock price for up to 5 US equity tickers in one call — returns current stock price, change %, volume, day range, and 52-week range per ticker. Works with any NYSE/NASDAQ symbol (STRC, AMD, MSTR, SLV, USO, etc.). " +
     "Sourced from Yahoo Finance public data, no API key.",
 
   inputSchema: {

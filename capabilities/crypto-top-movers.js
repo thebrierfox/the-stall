@@ -59,7 +59,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Real-time cryptocurrency market snapshot: top 5 gainers and top 5 losers by 24-hour percentage change (among the top 100 coins by market cap), plus the 10 largest coins by market cap with current prices and 24h change. Also returns global market statistics: total market cap (USD), BTC dominance percentage, and 24h trading volume. Stablecoins excluded from movers ranking. Use before any crypto portfolio, trading, or market analysis task to get a current regime read. Data: CoinGecko public API (refreshes every 1–5 minutes).",
+    "Crypto top movers — real-time top 5 gainers and top 5 losers by 24-hour percentage change among top-100 coins by market cap, plus the 10 largest coins with current prices and 24h change. Also returns global market statistics: total market cap (USD), BTC dominance %, and 24h trading volume. Stablecoins excluded from movers ranking. Use before any crypto portfolio, trading, or market analysis task. Data: CoinGecko public API (refreshes every 1–5 minutes).",
 
   inputSchema: {
     type: "object",

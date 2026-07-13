@@ -250,12 +250,14 @@ function log402Bounce(req, res) {
       : attempted_chain.startsWith("eip155") ? "evm"
       : "unknown";
     const payer = extractPayerFromHeader(xPayment);
+    const seederWallet = (process.env.SEEDER_WALLET_ADDRESS || "0xf615bda54d576e757b51a6128ac8a7c67a1c3d6c").toLowerCase();
     appendFileSync(BOUNCE_LOG, JSON.stringify({
       ts: new Date().toISOString(),
       cap: req.path,
       attempted_rail,
       attempted_chain,
       payer: payer || null,
+      is_seeder: payer ? payer.toLowerCase() === seederWallet : false,
       rejection_reason: "payment_rejected",
     }) + "\n");
     // W3: real-time hot-lead alert — non-seeder bounces only

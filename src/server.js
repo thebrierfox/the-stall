@@ -12,9 +12,19 @@
 // with its own money, that this capability was worth it. That signal is the
 // whole point — it costs ~nothing to list and lets the market answer.
 
+// Prevent crash-restart loops from unhandled body-parser exceptions or async rejections.
+// Body-parser throws on malformed JSON; without this, Node exits and EADDRINUSE loops start.
+process.on('uncaughtException', (err) => {
+  console.error('[server] uncaughtException:', err?.message, err?.stack?.split('\n')[1] || '');
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] unhandledRejection:', reason?.message || reason);
+});
+
 import "dotenv/config";
 import express from "express";
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from "fs";
+import { exec } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadCapabilities } from "./registry.js";
@@ -62,6 +72,9 @@ const SETTLEMENT_LOG = join(LOG_DIR, "settlement.jsonl");
 const SETTLEMENT_CORRECTIONS_LOG = join(LOG_DIR, "settlement_corrections.jsonl");
 const CALL_AUDIT_LOG = join(LOG_DIR, "call_audit.jsonl");
 const BOUNCE_LOG = join(LOG_DIR, "402_bounces.jsonl");
+// W3: Bounce alert — non-seeder bounces fire immediate Telegram (hot-lead capture)
+const _SEEDER_BOUNCE_ADDR = (process.env.SEEDER_WALLET_ADDRESS || "0xf615bda54d576e757b51a6128ac8a7c67a1c3d6c").toLowerCase();
+const _NOTIFY_SH_PATH = join(process.env.HOME || "/home/aegis", "intuitek", "notify.sh");
 
 // Async post-settlement RPC enrichment: when payer=null but tx_hash is present
 // (seeder-relay path), look up Transfer.from on-chain and write a correction entry.
@@ -221,7 +234,8 @@ function logCallAudit(method, path, statusCode, ip, ua, xPayment, rail = "x402")
 // 402 bounce logger — fires when a payment header is present but payment was rejected (demand sensor).
 // Handles both x402 v1 (X-PAYMENT) and v2 (PAYMENT-SIGNATURE) header names.
 // Appends to logs/402_bounces.jsonl. Zero behavior change to the 402 response itself.
-function log402Bounce(req) {
+// W3: also fires immediate Telegram for non-seeder bounces (hot-lead capture, 5-second latency).
+function log402Bounce(req, res) {
   try {
     // v2 uses "Payment-Signature"; v1 used "X-PAYMENT"
     const xPayment = req.headers['payment-signature'] || req.headers['x-payment'] || null;
@@ -244,6 +258,23 @@ function log402Bounce(req) {
       payer: payer || null,
       rejection_reason: "payment_rejected",
     }) + "\n");
+    // W3: real-time hot-lead alert — non-seeder bounces only
+    if (payer && payer.toLowerCase() !== _SEEDER_BOUNCE_ADDR) {
+      try {
+        let priceStr = "";
+        if (res) {
+          const prHdr = res.getHeader('payment-required') || res.getHeader('PAYMENT-REQUIRED');
+          if (prHdr) {
+            const reqs = JSON.parse(Buffer.from(String(prHdr), 'base64').toString('utf8'));
+            const amt = reqs?.accepts?.[0]?.amount;
+            if (amt) priceStr = ` $${(Number(amt) / 1e6).toFixed(3)}`;
+          }
+        }
+        const capName = (req.path || "").replace('/cap/', '');
+        const msg = `💡 [Bounce] ${payer.slice(0, 14)} tried ${capName}${priceStr} — max-intent lead`;
+        exec(`bash '${_NOTIFY_SH_PATH}' '${msg.replace(/'/g, "")}'`, () => {});
+      } catch { /* alert never throws */ }
+    }
   } catch { /* never throw from bounce logger */ }
 }
 
@@ -1129,7 +1160,7 @@ app.use((_req, res, next) => {
         if (parts.length) res.setHeader('WWW-Authenticate', parts.join(', '));
       }
       // Log bounce if payment header present — payer attempted a rejected rail (demand sensor)
-      if (_req.headers['x-payment'] || _req.headers['payment-signature']) log402Bounce(_req);
+      if (_req.headers['x-payment'] || _req.headers['payment-signature']) log402Bounce(_req, res);
       const prHeader = res.getHeader('PAYMENT-REQUIRED') || res.getHeader('payment-required');
       if (prHeader) {
         try {
@@ -1287,6 +1318,16 @@ for (const cap of capabilities) {
 }
 
 mountThe402Rail(app, capabilities);
+
+// Express error middleware — catches body-parser parse failures and other route errors
+// before they propagate to uncaughtException. Must be declared after all routes.
+app.use((err, _req, res, _next) => {
+  if (err?.type === 'entity.parse.failed' || err?.status === 400) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  console.error('[server] unhandled route error:', err?.message);
+  res.status(500).json({ error: 'internal_error' });
+});
 
 app.listen(PORT, () => {
   console.log(`\n  THE STALL  ·  open on :${PORT}  ·  network: ${NETWORK}`);

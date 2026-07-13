@@ -25,6 +25,7 @@ import { makeMcpHandler, makeSSEHandlers } from "./mcp.js";
 import { mountRetainer } from "./retainer/index.js";
 import { makeLiveProvider } from "./retainer/risk.js";
 import { mountStripeRail } from "./stripe-rail.js";
+import { mountThe402Rail } from "./the402-rail.js";
 import { loadSigner } from "./retainer/token.js";
 import { buildSolanaRailMiddleware, SOLANA_WALLET } from "./solana-rail.js";
 import { buildPolygonRailMiddleware, POLYGON_WALLET, POLYGON_USDC } from "./polygon-rail.js";
@@ -260,7 +261,7 @@ app.set("trust proxy", 1);
 // NOT be pre-parsed by express.json(). Skip JSON parsing for that one path; the
 // fiat rail mounts express.raw() on it instead.
 app.use((req, res, next) => {
-  if (req.path === "/v1/fiat/webhook") return next();
+  if (req.path === "/v1/fiat/webhook" || req.path === "/v1/the402-webhook") return next();
   return express.json()(req, res, next);
 });
 app.use((_req, res, next) => {
@@ -883,9 +884,9 @@ app.get("/", (_req, res) => {
 // ── llms.txt — agent/registry discovery file ─────────────────────────────────
 app.get("/llms.txt", (_req, res) => {
   // Revenue-proven caps — ordered by actual USDC organic earnings (settlement.jsonl, automaton-filtered per gate-zero 2026-06-27).
-  // Last updated: 2026-07-02. youtube-intel DROPPED (single automaton, 0 organic). stock-price-multi #1 (64), earnings-calendar #2 (41), research-synthesis #3 (32), us-stock-price #4 (27), crypto-top-movers #5 (26), equity-brief #6 (5/$1.83), earnings-surprises #7 (5), equity-fundamentals #8 (5), fomc-tracker #9 (4), credit-spreads #10 (3), fact-check #11 (2), sector-rotation #12 (2).
-  const PRIORITY_CAPS = ['stock-price-multi','earnings-calendar','research-synthesis','us-stock-price','crypto-top-movers',
-    'equity-brief','earnings-surprises','equity-fundamentals','fomc-tracker','credit-spreads','fact-check','sector-rotation'];
+  // Last updated: 2026-07-13. 7-day organic (Jul 6-13): research-synthesis #1 ($12.50/5), us-stock-price #2 ($10.15/100), github-repo-intel #3 ($1.84/54), wikipedia-intel #4 ($1.67/49), equity-brief #5 ($1.48/4), income-statements #6 ($1.19/34), earnings-calendar #7 ($0.35/6), stock-brief #8 ($0.32/9), defi-portfolio #9 ($0.30/5), reddit-intel #10 ($0.28/7), fact-check #11 ($0.47/2-high-per-call), crypto-top-movers #12 (historical). Dropped: stock-price-multi/earnings-surprises/equity-fundamentals/fomc-tracker/credit-spreads/sector-rotation (0 organic 7d).
+  const PRIORITY_CAPS = ['research-synthesis','us-stock-price','github-repo-intel','wikipedia-intel','equity-brief',
+    'income-statements','earnings-calendar','stock-brief','defi-portfolio','reddit-intel','fact-check','crypto-top-movers'];
   // Build categories with first-match-wins — prevent duplicates across overlapping regexes.
   // PRIORITY_CAPS are pre-seeded so they never appear in a category section (handled in prioritySection).
   const assignedNames = new Set(PRIORITY_CAPS);
@@ -1284,6 +1285,8 @@ for (const cap of capabilities) {
     ...(req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}),
   })));
 }
+
+mountThe402Rail(app, capabilities);
 
 app.listen(PORT, () => {
   console.log(`\n  THE STALL  ·  open on :${PORT}  ·  network: ${NETWORK}`);

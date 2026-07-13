@@ -51,7 +51,7 @@ function shape(d) {
 
 export default {
   name: "ip-intel",
-  price: "$0.034",
+  price: "$0.059",
 
   description:
     "Geolocation and network intelligence for IP addresses or domain names. Returns country, region, city, coordinates, ISP, organization, ASN, reverse DNS, and proxy/VPN/mobile/hosting flags. Accepts IPv4, IPv6, or domain names (auto-resolved to IP). Useful for infrastructure audits, fraud detection, blockchain node geography, and origin enrichment.",

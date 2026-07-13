@@ -114,7 +114,7 @@ async function analyzeGitHubRepo(repo) {
 
 export default {
   name: "code-test-detector",
-  price: "$0.034",
+  price: "$0.160",
 
   description:
     "Detects testing frameworks and test coverage presence in a code snippet or GitHub repository. For code snippets: identifies test functions, assertions, mocks, fixtures, and frameworks (Jest, pytest, go test, JUnit, RSpec, etc.). For GitHub repos: counts test files vs source files, surfaces config files, and gives a coverage verdict. No code execution — pure static analysis.",

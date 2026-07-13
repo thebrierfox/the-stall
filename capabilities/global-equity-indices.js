@@ -107,7 +107,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Global equity snapshot: 9 major indices (Nikkei 225, Hang Seng, ASX 200, Nifty 50, Shanghai, FTSE 100, DAX, CAC 40, Euro Stoxx 50) plus DXY. Returns current level, daily % change, 52-week range context, and region posture (bullish/mixed/bearish). Free Yahoo Finance data. No API key. Overnight context for global macro agents and forex positioning. $0.010/call.",
+    "Global stock market and equity index snapshot: 9 major indices (Nikkei 225, Hang Seng, ASX 200, Nifty 50, Shanghai, FTSE 100, DAX, CAC 40, Euro Stoxx 50) plus DXY. Returns current level, daily % change, 52-week range context, and region posture (bullish/mixed/bearish). Free Yahoo Finance data. No API key. Overnight context for global macro agents and forex positioning. $0.010/call.",
 
   inputSchema: {
     type: "object",

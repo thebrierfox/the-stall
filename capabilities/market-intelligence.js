@@ -21,7 +21,7 @@ const VALID_SORT = new Set(["payers", "settlements", "price_asc", "price_desc", 
 
 export default {
   name: "market-intelligence",
-  price: "$0.045",
+  price: "$0.390",
 
   description:
     "Discovers active x402 APIs with verified organic USDC settlements — shows which endpoints have genuine payer breadth across the ecosystem. Sourced from on-chain settlements, not catalog listings. Filter by category, price range, and minimum unique payers. Useful before wiring a workflow to an external x402 endpoint: confirms it is active with multiple independent payers, not private infrastructure or a dead listing.",

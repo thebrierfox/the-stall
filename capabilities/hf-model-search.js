@@ -23,7 +23,7 @@ const VALID_TASKS = new Set([
 
 export default {
   name: "hf-model-search",
-  price: "$0.034",
+  price: "$0.059",
 
   description:
     "Search HuggingFace Hub for ML models. Specify a keyword (e.g. 'bert', 'llama', 'stable diffusion') and optional task filter (e.g. 'text-classification', 'text-generation', 'image-classification'). Returns top results sorted by downloads or likes, including model ID, author, pipeline task, framework library, download count, likes count, and tags.",

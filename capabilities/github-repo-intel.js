@@ -35,10 +35,10 @@ async function fetchJson(url) {
 
 export default {
   name:  "github-repo-intel",
-  price: "$0.034",
+  price: "$0.075",
 
   description:
-    "GitHub repository intelligence: stars, forks, open issues, language, license, last push date, latest release version and date, topics, and whether the repo is actively maintained. Input any GitHub repo as 'owner/repo' or a full GitHub URL. Use before wiring a new library as a dependency, when evaluating a project for acquisition or integration, or when you need to assess community health (stars/forks ratio, issue velocity, maintainer recency). Free upstream: GitHub public API (no key needed, 60 req/hr unauthenticated).",
+    "GitHub repository intelligence: stars, forks, open issues, language, license, last push date, latest release version and date, topics, and whether the repo is actively maintained. Input any GitHub repo as 'owner/repo' or a full GitHub URL. Use before wiring a new library as a dependency, when evaluating a project for acquisition or integration, or when you need to assess community health (stars/forks ratio, issue velocity, maintainer recency). Entity-parametric — one repo per call, parallel-safe for batch repo evaluation pipelines. Free upstream: GitHub public API (no key needed, 60 req/hr unauthenticated).",
 
   inputSchema: {
     type: "object",

@@ -274,7 +274,7 @@ export default {
   price: "$0.40",
 
   description:
-    "AI-synthesized fixed-income market brief. Assembles 9 signals: Treasury yield curve (3M/5Y/10Y/30Y from Yahoo Finance CBOE indices), 2Y yield + 10Y TIPS real yield + 10Y breakeven inflation (FRED), and HY/IG credit spreads (FRED ICE BofA). Returns 2Y-10Y inversion signal, real rate environment, credit regime, composite rate_environment classification (RECESSION_RISK_HIGH/INVERTED_CURVE_NORMAL_CREDIT/TIGHT_FINANCIAL_CONDITIONS/ACCOMMODATIVE/NEUTRAL/etc.), and ~200-word GPT-4o-mini briefing covering discount rate implications and AI agent portfolio positioning.",
+    "AI-synthesized bond and fixed-income market brief. Assembles 9 signals: Treasury yield curve (3M/5Y/10Y/30Y from Yahoo Finance CBOE indices), 2Y yield + 10Y TIPS real yield + 10Y breakeven inflation (FRED), and HY/IG credit spreads (FRED ICE BofA). Returns 2Y-10Y inversion signal, real rate environment, credit regime, composite rate_environment classification (RECESSION_RISK_HIGH/INVERTED_CURVE_NORMAL_CREDIT/TIGHT_FINANCIAL_CONDITIONS/ACCOMMODATIVE/NEUTRAL/etc.), and ~200-word GPT-4o-mini briefing covering discount rate implications and AI agent portfolio positioning.",
 
   inputSchema: {
     type: "object",

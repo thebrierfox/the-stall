@@ -182,7 +182,7 @@ Respond ONLY with a JSON object (no markdown, no text outside JSON):
 
 export default {
   name:  "energy-brief",
-  price: "$0.67",
+  price: "$0.990",
 
   description:
     "AI-synthesized US energy market intelligence brief. Assembles 9 real-time signals from Yahoo Finance: WTI crude futures, Brent crude (with spread), natural gas (Henry Hub proxy), energy sector ETF (XLE), oil services ETF (OIH), ExxonMobil, Chevron, Marathon Petroleum, and Baker Hughes. Returns 52-week context, Brent/WTI spread, market-regime classification, and a 200-word GPT-4o-mini narrative covering oil regime, dominant risk, and agent decision implications. Seam: crownblock upstream $1.00/call — STALL at $0.65 with real-time futures data vs monthly averages.",

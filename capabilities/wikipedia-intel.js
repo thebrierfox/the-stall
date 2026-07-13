@@ -65,7 +65,7 @@ export default {
   price: "$0.034",
 
   description:
-    "Wikipedia article lookup and search. Given a search query, returns the top matching Wikipedia articles with title, plain-text extract (~800 chars), description, thumbnail URL, page URL, and last-modified date. Use for rapid factual lookup, entity enrichment, concept explanation, or pre-flight research on any topic. No API key required.",
+    "Wikipedia article lookup and search. Given a search query, returns the top matching Wikipedia articles with title, plain-text extract (~800 chars), description, thumbnail URL, page URL, and last-modified date. Use for rapid factual lookup, entity enrichment, concept explanation, or pre-flight research on any topic. Entity-parametric — accepts one query per call; parallel-safe for enriching lists of companies, people, or places in distributed agentic pipelines. No API key required.",
 
   inputSchema: {
     type: "object",

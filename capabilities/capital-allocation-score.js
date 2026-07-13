@@ -1,6 +1,6 @@
 // capital-allocation-score.js
 //
-// Capital allocation quality assessment for any US public company.
+// Stock capital allocation quality assessment for any US company.
 // Answers the question any DCF analyst asks AFTER valuing a company:
 // "Is management actually good at deploying the capital they generate?"
 //
@@ -302,10 +302,10 @@ function computeGrade(roicData, fcfData, tsyData) {
 
 export default {
   name:  "capital-allocation-score",
-  price: "$0.020",
+  price: "$0.025",
 
   description:
-    "Capital allocation quality assessment for any US public company. Returns ROIC (Return on Invested Capital), FCF yield, total shareholder yield (dividends + buybacks), CapEx intensity, and reinvestment rate. Synthesizes these into a letter grade (A–F) that answers: is management good at deploying the capital they generate? Designed to chain after equity-fundamentals and wacc-calculator to qualify management quality before setting DCF terminal growth assumptions.",
+    "Stock capital allocation quality assessment for any US company. Returns ROIC (Return on Invested Capital), FCF yield, total shareholder yield (dividends + buybacks), CapEx intensity, and reinvestment rate. Synthesizes these into a letter grade (A–F) that answers: is management good at deploying the capital they generate? Designed to chain after equity-fundamentals and wacc-calculator to qualify management quality before setting DCF terminal growth assumptions.",
 
   outputSchema: {
     type: "object",

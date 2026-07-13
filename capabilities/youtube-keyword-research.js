@@ -62,7 +62,7 @@ const YEAR_RE  = /\b(2024|2025|2026)\b/;
 
 export default {
   name: "youtube-keyword-research",
-  price: "$0.012",
+  price: "$0.059",
 
   description:
     "YouTube keyword research using Google's autocomplete API. For a seed topic, returns suggested search phrases plus intent clusters: questions people ask, tutorial/learning queries, comparison queries, and year-tagged trending terms. No API key. Upstream of youtube-niche-intel (competition scoring) and youtube-intel (video search). Use when mapping a YouTube content strategy, finding keyword gaps, or building a channel topic plan.",

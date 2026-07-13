@@ -1,6 +1,6 @@
 // peer-benchmarking.js
 //
-// Comparable-company analysis for any US equity. Fetches the target stock's
+// Comparable-company analysis for any US stock. Fetches the target stock's
 // valuation, growth, and profitability metrics, identifies 5 sector peers via
 // Yahoo Finance recommendations, fetches the same metrics for each peer, then
 // computes peer medians and explicit premium/discount % for the target.
@@ -117,7 +117,7 @@ export default {
   price: "$0.100",
 
   description:
-    "Comparable-company analysis for any US equity. Returns target vs. 5 sector-peer median on P/E, EV/EBITDA, revenue growth, and profit margin — with explicit premium/discount %. Replaces manual comps-table research. No API key required.",
+    "Comparable-company analysis for any US stock. Returns target vs. 5 sector-peer median on P/E, EV/EBITDA, revenue growth, and profit margin — with explicit premium/discount %. Replaces manual comps-table research. No API key required.",
 
   inputSchema: {
     type: "object",

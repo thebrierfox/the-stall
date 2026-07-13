@@ -98,7 +98,7 @@ export default {
   price: "$0.025",
 
   description:
-    "Computes WACC (Weighted Average Cost of Capital) for any US public company using CAPM cost of equity (live 10Y Treasury + beta × ERP), after-tax cost of debt (interest expense / total debt), and market-value capital structure weights. The discount rate needed to run a DCF model.",
+    "Computes stock WACC (Weighted Average Cost of Capital) for any US company using CAPM cost of equity (live 10Y Treasury + beta × ERP), after-tax cost of debt (interest expense / total debt), and market-value capital structure weights. The discount rate needed to run a DCF model.",
 
   inputSchema: {
     type: "object",

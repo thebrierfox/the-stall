@@ -44,7 +44,7 @@ export default {
   price: "$0.035",
 
   description:
-    "US equity snapshot + Limitless prediction market sentiment in one call. Returns current price, intraday change, volume, 52-week range for any NYSE/NASDAQ ticker, plus any active Limitless prediction markets matching the ticker keyword (direction bets, price level markets). Single-call alternative to separate limitless-markets + us-stock-price calls. Free upstream — no API key required. $0.015/call.",
+    "US stock snapshot + Limitless prediction market sentiment in one call. Returns current stock price, intraday change, volume, 52-week range for any NYSE/NASDAQ ticker, plus any active Limitless prediction markets matching the ticker keyword (direction bets, price level markets). Single-call alternative to separate limitless-markets + stock-price calls. Free upstream — no API key required. $0.015/call.",
 
   inputSchema: {
     type: "object",

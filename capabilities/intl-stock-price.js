@@ -36,7 +36,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Returns current price and intraday metrics for international equities (EU, UK, Swiss, Japan, Australia, Canada, Hong Kong, India). Accepts exchange-suffixed tickers (MC.PA for LVMH, SAP.DE for SAP, AZN.L for AstraZeneca) or market shorthand (market=fr, ticker=MC). Sourced from Yahoo Finance — no API key, live during market hours. $0.020/call.",
+    "Returns current stock price and intraday metrics for international stocks (EU, UK, Swiss, Japan, Australia, Canada, Hong Kong, India). Accepts exchange-suffixed tickers (MC.PA for LVMH, SAP.DE for SAP, AZN.L for AstraZeneca) or market shorthand (market=fr, ticker=MC). Sourced from Yahoo Finance — no API key, live during market hours. $0.020/call.",
 
   inputSchema: {
     type: "object",

@@ -38,7 +38,7 @@ function buildSortParam(sort) {
 
 export default {
   name:  "research-paper-search",
-  price: "$0.034",
+  price: "$0.059",
 
   description:
     "Academic paper search across 250M+ works via OpenAlex (free, no key). Returns top papers with title, authors, year, DOI, citation count, open-access status, and primary research topic. Covers all disciplines: AI/ML, medicine, physics, economics, law, biology, and more. Supports relevance, citation-count, and recency sorting; open-access filtering; and year-range constraints. Use for literature review, prior-art search, citation building, or finding the seminal papers in any field.",

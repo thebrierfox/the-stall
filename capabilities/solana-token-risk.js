@@ -75,7 +75,7 @@ function computeRiskScore({ mintRenounced, freezeRenounced, liquidityUsd, ageDay
 
 export default {
   name:  "solana-token-risk",
-  price: "$0.070",
+  price: "$0.120",
 
   description:
     "Rug-pull and risk scanner for Solana SPL tokens. Input a mint address; returns mint/freeze authority status, top-10 holder concentration, liquidity depth, token age, and a composite safety score (0–100, higher = safer) with risk level (safe/moderate/risky/danger) and green/warning flags. Uses Solana public RPC and DexScreener — no API keys required. Useful for agents vetting a memecoin or new token before trading, swapping, or recommending.",

@@ -72,7 +72,7 @@ function trendSlope(arr, n = 10) {
 export default {
   name:        "market-regime-intel",
   price:       "$0.040",
-  description: "Classify US equity market regime (BULL/CORRECTION/BEAR/SIDEWAYS/RISK_OFF) from 5 signals: SPY SMA50/200 trend, VIX level and trend, HYG/IEF credit spread, 10-yr yield, and QQQ/IWM momentum divergence. Returns regime label, per-signal scores, composite confidence 0-100, and narrative summary.",
+  description: "Classify US stock market regime (BULL/CORRECTION/BEAR/SIDEWAYS/RISK_OFF) from 5 signals: SPY SMA50/200 trend, VIX level and trend, HYG/IEF credit spread, 10-yr yield, and QQQ/IWM momentum divergence. Returns regime label, per-signal scores, composite confidence 0-100, and narrative summary.",
 
   inputSchema: {
     type:                 "object",

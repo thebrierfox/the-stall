@@ -246,7 +246,7 @@ async function barcodeProduct(code) {
 
 export default {
   name:  "open-food-intel",
-  price: "$0.008",
+  price: "$0.015",
 
   description:
     "Open Food Facts nutritional intelligence — 3M+ consumer food products. Two modes: (1) search: keyword search returning Nutri-Score (A–E), NOVA processing level (1–4), macronutrients per 100g, allergens, eco-score, and popularity rank. (2) barcode: exact UPC/EAN lookup with full nutritional profile per 100g and per serving, complete ingredients list, and packaging info. Useful for meal-planning agents, dietary restriction checkers, grocery comparison tools, and food compliance research. No API key required.",

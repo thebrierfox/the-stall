@@ -50,7 +50,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Full dividend intelligence for any US equity: trailing 12-month yield, forward annual rate, payout frequency (monthly/quarterly/semi-annual/annual), 5-year dividend CAGR, consecutive years paid, consecutive years of growth, and complete 5-year dividend history with dates and amounts. Single call — no API key. Ideal for income screening, dividend safety analysis, and yield comparison across a portfolio.",
+    "Full dividend intelligence for any US stock: trailing 12-month yield, forward annual rate, payout frequency (monthly/quarterly/semi-annual/annual), 5-year dividend CAGR, consecutive years paid, consecutive years of growth, and complete 5-year dividend history with dates and amounts. Single call — no API key. Ideal for income screening, dividend safety analysis, and yield comparison across a portfolio.",
 
   inputSchema: {
     type: "object",

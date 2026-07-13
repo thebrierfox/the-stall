@@ -97,7 +97,7 @@ function consensusSignal(price, rsiVal, macdData, bb) {
 
 export default {
   name: "equity-technicals",
-  price: "$0.070",
+  price: "$0.420",
 
   description:
     "Returns a complete technical analysis package for any US stock: RSI(14) with oversold/overbought signal, MACD(12/26/9) with histogram, Bollinger Bands(20,2σ) with price position, SMA 20/50/200 with crossover state, 20-day volume ratio, and a consensus signal (BULLISH/BEARISH/NEUTRAL) based on indicator agreement. Sourced from 1-year Yahoo Finance daily OHLCV — no API key, live data. Richer than a simple price endpoint: agents use this for entry/exit signal confirmation, momentum screening, and pre-trade context without managing their own TA library.",

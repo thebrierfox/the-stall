@@ -1,6 +1,6 @@
 // equity-quality-screen.js
 //
-// Financial quality screen for any US public company. Returns Piotroski F-Score
+// Financial quality screen for any US public company. Returns Stock Piotroski F-Score
 // (9 binary signals from profitability, leverage, and efficiency trends) and
 // Altman Z-Score (bankruptcy-distress predictor). Together they answer:
 //   "Is this company fundamentally sound and improving?"
@@ -205,7 +205,7 @@ export default {
   name:  "equity-quality-screen",
   price: "$0.025",
   description:
-    "Piotroski F-Score (0–9 quality composite: profitability+leverage+efficiency trends) " +
+    "Stock Piotroski F-Score (0–9 quality composite: profitability+leverage+efficiency trends) " +
     "and Altman Z-Score (distress predictor) for any US public company. One call replaces " +
     "manual assembly of 3 years of annual statements. $0.025/call.",
 

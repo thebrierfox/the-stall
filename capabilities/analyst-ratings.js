@@ -89,7 +89,7 @@ function normalizeKey(k) {
 
 export default {
   name: "analyst-ratings",
-  price: "$0.078",
+  price: "$0.295",
 
   description:
     "Wall Street analyst consensus and price targets for any US equity. Returns buy/hold/sell breakdown, mean recommendation score (1=Strong Buy, 5=Strong Sell), analyst count, and price target range (low/mean/median/high) with upside-to-target. Free Yahoo Finance data, no API key. Complements us-stock-price and equity-technicals with the analyst conviction layer.",

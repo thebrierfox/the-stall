@@ -57,7 +57,7 @@ export default {
   price: "$0.015",
 
   description:
-    "Institutional and insider ownership snapshot for any US equity. Returns: (1) major holders " +
+    "Institutional and insider ownership snapshot for any US stock. Returns: (1) major holders " +
     "breakdown — % insiders, % institutions, float coverage, total institution count; " +
     "(2) up to 10 largest institutional holders — name, pct of shares held, share count, total " +
     "value (USD), pct change since prior 13F quarter, reporting date; " +

@@ -44,7 +44,7 @@ function riskPosture(vix, spyPct, qqpPct, iwmPct) {
 
 export default {
   name: "market-overview",
-  price: "$0.040",
+  price: "$0.100",
 
   description:
     "Single-call market snapshot: SPY, QQQ, IWM, and DIA price + intraday % change, VIX fear gauge, 10-year Treasury yield (^TNX), and a derived risk-posture signal (RISK_ON / NEUTRAL / RISK_OFF / RISK_OFF_ELEVATED). Replaces 5–6 individual price calls with one structured payload useful for position-sizing, regime detection, or pre-trade context. Sourced from Yahoo Finance public data — live during market hours.",

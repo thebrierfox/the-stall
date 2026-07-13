@@ -144,7 +144,7 @@ async function fetchOembed(videoId) {
 
 export default {
   name:  "youtube-intel",
-  price: "$0.059",
+  price: "$0.100",
 
   description:
     "YouTube video intelligence: title, author, channel stats (subscriber count, channel ID), description, view/like/comment counts, duration, upload date, thumbnail, tags, categories, structured chapters (timestamps), replay heatmap (top-20 most-replayed segments), live status, and availability. Accepts any YouTube URL or bare video ID. Powered by yt-dlp.",

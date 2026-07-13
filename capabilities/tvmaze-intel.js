@@ -96,7 +96,7 @@ async function resolveShow(idOrName) {
 
 export default {
   name: "tvmaze-intel",
-  price: "$0.008",
+  price: "$0.010",
   description:
     "TV show intelligence via TVMaze: search 90k+ shows by name, get full show " +
     "profiles with cast/schedule/rating, list episode guides by season, or fetch " +

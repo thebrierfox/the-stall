@@ -94,9 +94,9 @@ function compositeSignal(vix, termStructure, vvixSig, skewSig) {
 
 export default {
   name: "volatility-brief",
-  price: "$0.020",
+  price: "$0.059",
   description:
-    "US equity volatility regime brief — VIX (30-day), VXMT (93-day), VVIX (vol-of-vol), and SKEW index assembled into a single vol dashboard. Outputs term structure (CONTANGO/FLAT/BACKWARDATION), VIX percentile rank, vol regime (CALM/MODERATE/ELEVATED/CRISIS), and composite signal (RISK_OFF/CAUTION/NEUTRAL/COMPLACENCY). Free CBOE delayed data, no API key. Use with market-regime-intel for full macro context.",
+    "US stock market volatility brief — VIX (30-day), VXMT (93-day), VVIX (vol-of-vol), and SKEW index assembled into a single vol dashboard. Outputs term structure (CONTANGO/FLAT/BACKWARDATION), VIX percentile rank, vol regime (CALM/MODERATE/ELEVATED/CRISIS), and composite signal (RISK_OFF/CAUTION/NEUTRAL/COMPLACENCY). Free CBOE delayed data, no API key. Use with market-regime-intel for full macro context.",
 
   inputSchema: {
     type: "object",

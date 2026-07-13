@@ -1,6 +1,6 @@
 // guidance-quality.js
 //
-// Earnings guidance quality and predictability scoring for any US equity.
+// Earnings guidance quality and predictability scoring for any US stock.
 // Converts a company's historical EPS beat/miss record into an actionable
 // predictability label and score — answering the DCF analyst's key question:
 // "Should I trust this company's forward guidance in my model?"
@@ -151,10 +151,10 @@ function interpretGuidance(label, avgSurprise, predictability) {
 
 export default {
   name:  "guidance-quality",
-  price: "$0.012",
+  price: "$0.025",
 
   description:
-    "Earnings guidance quality and predictability scoring for any US equity. " +
+    "Earnings guidance quality and predictability scoring for any US stock. " +
     "Converts the historical EPS beat/miss record into a label (SUPER_BEATER / " +
     "RELIABLE_BEATER / INCONSISTENT / GUIDANCE_RISK), a predictability score (0–100), " +
     "trend signal (IMPROVING / STABLE / DETERIORATING), and a DCF implication. " +

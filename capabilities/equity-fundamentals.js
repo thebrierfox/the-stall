@@ -1,6 +1,6 @@
 // equity-fundamentals.js
 //
-// Fundamental valuation metrics for any US public company — P/E TTM,
+// Stock fundamental valuation metrics for any US company (stock analysis) — P/E TTM,
 // forward P/E, PEG ratio, P/B, EV/EBITDA, enterprise value, market cap,
 // profit/operating/gross margins, ROE, ROA, revenue TTM, earnings growth,
 // revenue growth, debt/equity, free cash flow, beta.
@@ -88,7 +88,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Fundamental valuation metrics for any US public company — P/E TTM, forward P/E, PEG, P/B, EV/EBITDA, margins, ROE, ROA, revenue TTM, earnings/revenue growth, free cash flow, market cap, beta. Raw data for valuation screening and DCF inputs. No API key.",
+    "Stock fundamental valuation metrics for any US company — P/E TTM, forward P/E, PEG, P/B, EV/EBITDA, margins, ROE, ROA, revenue TTM, earnings/revenue growth, free cash flow, market cap, beta. Raw data for valuation screening and DCF inputs. No API key.",
 
   inputSchema: {
     type: "object",

@@ -210,7 +210,7 @@ export default {
   price: "$0.110",
 
   description:
-    "Technical analysis signal for any US equity, ETF, or crypto. Returns RSI(14), MACD(12/26/9), Bollinger Bands(20), volume trend, directional posture (STRONG_BUY/BUY/NEUTRAL/SELL/STRONG_SELL), and key price levels. Richer output than comparable services at $0.090. Free upstream: Yahoo Finance (equities), CoinGecko (crypto).",
+    "Technical analysis signal for any US stock, ETF, or crypto. Returns RSI(14), MACD(12/26/9), Bollinger Bands(20), volume trend, directional posture (STRONG_BUY/BUY/NEUTRAL/SELL/STRONG_SELL), and key price levels. Richer output than comparable services at $0.090. Free upstream: Yahoo Finance (equities), CoinGecko (crypto).",
 
   inputSchema: {
     type: "object",

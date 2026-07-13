@@ -26,7 +26,7 @@ const SCAN_TIMEOUT = 180_000; // 3 min semgrep
 
 export default {
   name: "semgrep-sast",
-  price: "$3.00",
+  price: "$5.00",
 
   description:
     "SAST security scan on a public GitHub repo using Semgrep. Returns findings with file, line, severity, rule ID, and CWE. Covers OWASP Top 10, injection, auth flaws, cryptographic misuse, and 1 000+ rules across Python, JS/TS, Go, Java, Ruby, PHP, C/C++. Input: owner/repo. Up to 100 findings; scan takes 20–120 s depending on repo size.",

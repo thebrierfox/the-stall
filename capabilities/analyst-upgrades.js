@@ -1,6 +1,6 @@
 // analyst-upgrades.js
 //
-// Analyst rating change history (upgrades, downgrades, initiations) for any US equity.
+// Analyst rating change history (upgrades, downgrades, initiations) for any US stock.
 // Sourced from Yahoo Finance upgradeDowngradeHistory (free, crumb-auth, no API key).
 //
 // Fills the gap between analyst-ratings (current consensus snapshot) and directional
@@ -73,10 +73,10 @@ const ACTION_LABELS = {
 
 export default {
   name:  "analyst-upgrades",
-  price: "$0.012",
+  price: "$0.025",
 
   description:
-    "Analyst rating change history (upgrades, downgrades, initiations) for any US equity. Returns each firm, action, from/to grade, and date — up to 365 days back. Computes net sentiment (upgrades minus downgrades): positive = bullish momentum building. Pairs with analyst-ratings (current consensus) and earnings-estimates (forward EPS). Yahoo Finance, no API key.",
+    "Analyst rating change history (upgrades, downgrades, initiations) for any US stock. Returns each firm, action, from/to grade, and date — up to 365 days back. Computes net sentiment (upgrades minus downgrades): positive = bullish momentum building. Pairs with analyst-ratings (current consensus) and earnings-estimates (forward EPS). Yahoo Finance, no API key.",
 
   inputSchema: {
     type: "object",

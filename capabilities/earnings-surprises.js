@@ -1,6 +1,6 @@
 // earnings-surprises.js
 //
-// Historical EPS beat/miss data for any US equity: actual vs estimate, surprise
+// Historical EPS beat/miss data for any US stock: actual vs estimate, surprise
 // %, beat rate, estimate revisions, and next earnings date.
 //
 // Seam: equity-research agents running post-earnings strategies, drift models,
@@ -79,7 +79,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Historical EPS beat/miss data for any US equity: actual EPS, consensus estimate, surprise %, beat rate, estimate revisions (30-day EPS drift), and next earnings date. Free Yahoo Finance data, no API key. Pairs with analyst-ratings and equity-fundamentals for a complete earnings intelligence stack.",
+    "Historical EPS beat/miss data for any US stock: actual EPS, consensus estimate, surprise %, beat rate, estimate revisions (30-day EPS drift), and next earnings date. Per-ticker, entity-parametric — parallel-safe for batch earnings analysis pipelines. Free Yahoo Finance data, no API key. Pairs with earnings-calendar and equity-fundamentals for a complete earnings intelligence stack.",
 
   inputSchema: {
     type: "object",

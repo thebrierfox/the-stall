@@ -67,7 +67,7 @@ function decentralizationGrade(n, hhiScore) {
 
 export default {
   name:  "btc-systems-theory",
-  price: "$0.059",
+  price: "$0.100",
 
   description:
     "Seven-lens systems theory analysis of the Bitcoin network. Returns: (1) difficulty feedback loop state + regulator lag, (2) mempool stock-flow ratio and queue depth, (3) confirmation delay at economy/priority fee tiers, (4) fee nonlinearity index and hash-rate growth curvature, (5) Nakamoto coefficient (min pools for 51% consensus), (6) self-organization score for fee market equilibrium, (7) HHI mining concentration index and decentralization grade A–F. Sourced from mempool.space — no API key required. Pairs with btc-game-theory for full Bitcoin systems and incentive analysis.",

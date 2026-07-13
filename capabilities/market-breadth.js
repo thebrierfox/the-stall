@@ -1,6 +1,6 @@
 // market-breadth.js
 //
-// US equity market breadth dashboard via ETF-ratio breadth proxies.
+// US stock market breadth dashboard via ETF-ratio breadth proxies.
 //
 // Breadth measures HOW MANY stocks are participating in a market move, not
 // just which direction the index points. A rally led by 5 mega-caps while
@@ -147,7 +147,7 @@ export default {
   name:  "market-breadth",
   price: "$0.010",
   description:
-    "US equity market breadth dashboard via institutional ETF-ratio breadth proxies. Measures participation across equal-weight (RSP/SPY divergence), small-caps (IWM/SPY), risk appetite (SPHB/SPLV), and mid-caps (MDY/SPY). Returns per-pair ratios, 20-day average, divergence%, 5-day momentum, and OUTPERFORMING/NEUTRAL/UNDERPERFORMING signal for each. Composite breadth_score (−100..+100) and breadth_regime (STRONGLY_BULLISH → STRONGLY_BEARISH). Use to confirm whether a market rally has broad participation or is driven by narrow mega-cap leadership. Complements sector-rotation (sector allocation) and volatility-brief (VIX regime). No API key required.",
+    "US stock market breadth dashboard via institutional ETF-ratio breadth proxies. Measures participation across equal-weight (RSP/SPY divergence), small-caps (IWM/SPY), risk appetite (SPHB/SPLV), and mid-caps (MDY/SPY). Returns per-pair ratios, 20-day average, divergence%, 5-day momentum, and OUTPERFORMING/NEUTRAL/UNDERPERFORMING signal for each. Composite breadth_score (−100..+100) and breadth_regime (STRONGLY_BULLISH → STRONGLY_BEARISH). Use to confirm whether a market rally has broad participation or is driven by narrow mega-cap leadership. Complements sector-rotation (sector allocation) and volatility-brief (VIX regime). No API key required.",
 
   inputSchema: {
     type:                 "object",

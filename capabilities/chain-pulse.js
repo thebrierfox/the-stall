@@ -50,7 +50,7 @@ function depegStatus(price) {
 
 export default {
   name:  "chain-pulse",
-  price: "$0.059",
+  price: "$0.117",
 
   description:
     "Returns an Ethereum block header + current stablecoin depeg status in one call. Collapses the eth-block → stablecoin-watch 2-hop chain. Block fields: number, hash, miner, timestamp, gas_used, tx_count. Stablecoin fields: symbol, price, peg_deviation, depeg_status, composite alert level. Supports Ethereum, Base, Polygon, Arbitrum. Free upstreams (DRPC + DeFiLlama), no API key required.",

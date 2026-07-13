@@ -226,7 +226,7 @@ function analyzeApiSurface(code) {
 
 export default {
   name: "code-api-surface",
-  price: "$0.045",
+  price: "$0.160",
 
   description:
     "Analyzes a code snippet and returns its API surface: HTTP routes (method + path), exported symbols, and middleware. Supports Express, FastAPI, Flask, Django, Spring Boot, ASP.NET, Rails, Gin. Pure static analysis — no code execution. Returns JSON with routes[], exports[], middleware[], lang, framework, and a plain-English summary. $0.10/call.",

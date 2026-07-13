@@ -8,7 +8,8 @@
 //
 // Authorized: Ruling 003-B v3 §6 (2026-07-09, Kyle operator authority).
 // Demand signal: Orderbook DEX 0x5e4943 / operator 0xaa5ac74, 353 calls / $7,282 / 229 calls last 2000 blocks.
-// Kill window: 30d from deployment. Zero Polygon-rail settlement → withdraw + dead-pond entry.
+// Kill window: 7d from 2026-07-09 (kill by 2026-07-16). Early-kill at zero organic calls. Probe pricing — no confirmed buyer.
+// Reprice: $5.00 → $0.75 (2026-07-09, Cowork-confirmed). Sub-second DEX oracle requirement incompatible with HTTP latency.
 
 const LLAMA_PRICE_URL = "https://coins.llama.fi/prices/current";
 const LLAMA_CHART_URL  = "https://coins.llama.fi/chart";
@@ -101,7 +102,7 @@ async function fetch24hChange(llamaKey) {
 
 export default {
   name:  "polygon-defi-price",
-  price: "$5.00",
+  price: "$0.75",
 
   description:
     "Real-time Polygon DeFi token price with 24h change and on-chain confidence score. Inputs: symbol (MATIC, WETH, WBTC, USDC, USDT, LINK, AAVE, QUICK, stMATIC) or polygon:0x... address for any Polygon ERC-20. Returns spot price in USD, 24h % change, DeFiLlama confidence (>0.9 = high), and cache staleness. Purpose-built for Polygon DEX agents, trade-sizing bots, and DeFi automation requiring network-native real-time prices. Data: DeFiLlama on-chain oracle (free, no key). No CEX dependency.",

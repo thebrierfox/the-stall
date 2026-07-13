@@ -32,7 +32,7 @@ function feePressureLabel(fastestFee) {
 
 export default {
   name: "btc-miner-econ",
-  price: "$0.059",
+  price: "$0.100",
 
   description:
     "Bitcoin mining economics and fee-market game theory via mempool.space. Returns current fee rates and pressure tier, miner revenue split (subsidy vs fees), next difficulty adjustment (direction, magnitude, blocks remaining), mining pool concentration (top-3 hashrate share), and mempool backlog size. Useful for agents reasoning about BTC transaction timing, miner incentive structures, or on-chain network health.",

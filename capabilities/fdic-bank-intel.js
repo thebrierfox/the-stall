@@ -205,7 +205,7 @@ async function bankFailures(limit = 20, year = null) {
 // --- Dispatch ---
 export default {
   name: "fdic-bank-intel",
-  price: "$0.010",
+  price: "$0.015",
 
   description:
     "FDIC BankFind Suite: US bank financial health, regulatory capital ratios, and historical bank failure data. search mode: find institutions by name with asset size and state. profile mode: quarterly Call Report data — ROA, ROE, risk-based capital ratio, net income, loans, deposits (input: bank name or FDIC certificate number). failures mode: recent/historical bank closures with fail date, assets, resolution type. Covers 10,000+ institutions and 4,100+ failures since 1934. No API key.",

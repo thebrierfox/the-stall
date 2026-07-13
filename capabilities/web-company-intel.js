@@ -157,7 +157,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Extract structured company intelligence from any public website. Returns company name, description, logo, emails, phones, address, founded date, social links (Twitter/LinkedIn/GitHub/etc.), and raw OpenGraph + schema.org/Organization data. Pure HTML extraction — no external APIs. $0.003 hedge against orbisapi web-scrape-company at $0.005.",
+    "Extract structured company intelligence from any public website. Returns company name, description, logo, emails, phones, address, founded date, social links (Twitter/LinkedIn/GitHub/etc.), and raw OpenGraph + schema.org/Organization data. Per-URL, entity-parametric — parallel-safe for batch company profiling in agentic pipelines. Pure HTML extraction — no external APIs.",
 
   inputSchema: {
     type: "object",

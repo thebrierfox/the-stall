@@ -98,7 +98,7 @@ Return JSON with:
 
 export default {
 name:        "fact-check",
-price:       "$0.10",
+price:       "$0.470",
 description: "Factual claim verification using Wikipedia evidence + AI synthesis. Extracts search terms from the claim, queries Wikipedia for relevant articles, and returns a structured verdict (LIKELY_TRUE / LIKELY_FALSE / MIXED / UNVERIFIABLE) with confidence score, explanation, and source citations.",
 
 inputSchema: {

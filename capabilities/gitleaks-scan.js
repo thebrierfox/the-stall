@@ -26,7 +26,7 @@ const SCAN_TIMEOUT = 120_000;  // 2 min gitleaks
 
 export default {
   name: "gitleaks-scan",
-  price: "$2.50",
+  price: "$4.00",
 
   description:
     "Secret and credential exposure scan on a public GitHub repo using Gitleaks. Scans full git history for hardcoded API keys, tokens, private keys, passwords, and 140+ secret patterns. Returns up to 50 findings with file, line, commit SHA, author, and rule ID. Use for supply-chain risk assessment, third-party dependency vetting, and pre-merge security gates.",

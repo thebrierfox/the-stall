@@ -137,7 +137,7 @@ function pivot(results, period, limit) {
 
 export default {
   name:  "income-statements",
-  price: "$0.035",
+  price: "$0.295",
 
   description:
     "Full income statement + cash flow history for any US public stock. " +
@@ -145,6 +145,7 @@ export default {
     "revenue, COGS, gross profit, R&D, SG&A, operating income, EBITDA, pretax income, " +
     "tax, net income, EPS (basic/diluted), operating cash flow, capex, free cash flow. " +
     "40% below stablefinance.dev/api/financials/income-statements ($0.020). " +
+    "Per-ticker, entity-parametric — parallel-safe for batch financial analysis across company lists. " +
     "Source: Yahoo Finance fundamentals timeseries (free, no API key required).",
 
   inputSchema: {

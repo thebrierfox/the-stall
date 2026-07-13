@@ -224,7 +224,7 @@ async function searchMode(query, limit) {
 
 export default {
   name:  "patent-intel",
-  price: "$0.008",
+  price: "$0.015",
 
   description:
     "USPTO patent intelligence for any company or keyword. " +

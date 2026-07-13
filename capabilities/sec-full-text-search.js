@@ -40,7 +40,7 @@ export default {
   price: "$0.010",
 
   description:
-    "Full-text search across all SEC EDGAR filings. Finds every public company that mentioned a keyword or phrase in their 10-K, 10-Q, 8-K, or other forms. Returns company names, tickers, filing dates, and relevance scores. Ideal for thematic equity research: 'which companies disclosed tariff risk in Q1 2026?'",
+    "Full-text search across all SEC EDGAR filings. Finds every public company that mentioned a keyword or phrase in their 10-K, 10-Q, 8-K, or other forms. Returns company names, tickers, filing dates, and relevance scores. Ideal for thematic stock and equity research: 'which companies disclosed tariff risk in Q1 2026?'",
 
   inputSchema: {
     type:       "object",

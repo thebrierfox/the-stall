@@ -1,6 +1,6 @@
 // earnings-quality.js
 //
-// Earnings quality and manipulation-risk screening for any US public company.
+// Stock earnings quality and manipulation-risk screening for any US public company.
 // Implements three complementary models that expose the gap between reported
 // income and cash reality:
 //
@@ -319,10 +319,10 @@ function computeRevenueQuality(bsList, isList) {
 
 export default {
   name:  "earnings-quality",
-  price: "$0.020",
+  price: "$0.025",
 
   description:
-    "Earnings quality and manipulation-risk screen for any US public company. Returns Beneish M-Score (8-component manipulation detector: M > -1.78 = manipulation risk), Sloan Accrual Ratio, cash conversion ratio, and AR vs revenue quality signal. Designed to chain after income-statements and equity-fundamentals to gate on earnings integrity before valuation.",
+    "Stock earnings quality and manipulation-risk screen for any US public company. Returns Beneish M-Score (8-component manipulation detector: M > -1.78 = manipulation risk), Sloan Accrual Ratio, cash conversion ratio, and AR vs revenue quality signal. Designed to chain after income-statements and equity-fundamentals to gate on earnings integrity before valuation.",
 
   outputSchema: {
     type: "object",

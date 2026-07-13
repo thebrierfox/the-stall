@@ -65,7 +65,7 @@ function shape(c) {
 
 export default {
   name: "country-info",
-  price: "$0.034",
+  price: "$0.059",
 
   description:
     "Country information lookup by name, ISO code (alpha-2 or alpha-3), or capital city. Returns: official name, ISO codes, capital, population, area (km²), region, languages, currencies (code + symbol), borders, calling code, timezones, and flag image URL. Useful for international business agents, geographic enrichment, currency identification, and compliance workflows.",

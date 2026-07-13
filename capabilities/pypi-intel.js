@@ -186,7 +186,7 @@ async function compare({ packages, include_downloads }) {
 
 export default {
   name:  "pypi-intel",
-  price: "$0.008",
+  price: "$0.015",
 
   description:
     "Python package intelligence from PyPI and pypistats.org. Returns metadata (author, license, dev status, dependencies, Python version support), download velocity (last day/week/month), version history, and known vulnerabilities. Compare up to 4 packages side-by-side. Use to evaluate library maturity, check maintenance health, compare competing frameworks, or trace transitive dependencies before adopting a package.",

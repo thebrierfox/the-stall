@@ -1,6 +1,6 @@
 // earnings-estimates.js
 //
-// Forward analyst consensus EPS and revenue estimates for any US equity.
+// Forward analyst consensus EPS and revenue estimates for any US stock.
 // Covers current-quarter, next-quarter, current-year, and next-year with
 // estimate revision momentum (revisions up vs down last 7 and 30 days)
 // and EPS trend drift (current estimate vs 30/60/90 days ago).
@@ -93,7 +93,7 @@ export default {
   price: "$0.012",
 
   description:
-    "Forward analyst consensus EPS and revenue estimates for any US equity. Returns current-quarter, " +
+    "Forward analyst consensus EPS and revenue estimates for any US stock. Returns current-quarter, " +
     "next-quarter, current-year, and next-year forecasts — avg/low/high EPS and revenue, YoY growth, " +
     "analyst count, estimate revision momentum (revisions up vs down last 7/30 days), and EPS trend " +
     "drift (current vs 30/60/90 days ago). Bridges the gap between historical earnings-surprises and " +

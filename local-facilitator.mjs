@@ -212,8 +212,9 @@ app.post("/settle", async (req, res) => {
     // Attempt CDP settle first for ping only; fall through to EIP-3009 on failure.
     // If CDP succeeds: wall is down → Bazaar indexing resumes for ping (log PASS).
     // If CDP fails: wall still up → log FAIL + continue to bypass. No revenue risk.
-    const resource = outerPayload?.resource || "";
-    if (resource.includes("/cap/ping") && CDP_KEY_ID && CDP_KEY_SECRET) {
+    const rawResource = outerPayload?.resource;
+    const resourceUrl = typeof rawResource === "string" ? rawResource : (rawResource?.url || "");
+    if (resourceUrl.includes("/cap/ping") && CDP_KEY_ID && CDP_KEY_SECRET) {
       try {
         const { status: cdpStatus, data: cdpData } = await proxyToCdp("/settle", req.body);
         if (cdpData?.success) {

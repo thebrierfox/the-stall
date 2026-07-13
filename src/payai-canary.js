@@ -78,6 +78,8 @@ export function buildPayAICanaryMiddleware(capabilities, solanaWallet, evmWallet
     if (!req.path.startsWith(`/cap/${CANARY_CAP}`)) return next();
     // Skip if already fiat-paid (stripe token bearer)
     if (req.fiatPaid) return next();
+    // Skip if request already carries a native EVM x402 payment — route through local facilitator
+    if (req.headers['payment-signature'] || req.headers['x-payment']) return next();
 
     const payaiMw = getPayAIMiddleware(pingCap, solanaWallet, evmWallet);
     if (!payaiMw) return next(); // PayAI unavailable — fall through to existing rails

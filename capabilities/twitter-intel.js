@@ -66,7 +66,7 @@ async function twitPay(path, params = {}) {
 
 export default {
   name: "twitter-intel",
-  price: "$0.035",
+  price: "$0.040",
 
   description:
     "Real-time Twitter/X data without an API key. lookup_user returns full profile (followers, bio, verification) for any @username. search_tweets returns 10 recent tweets matching a keyword or filter query. x402-settled upstream.",

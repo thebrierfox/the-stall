@@ -13,7 +13,7 @@ const TIMEOUT = 10000;
 
 export default {
   name: "ens-lookup",
-  price: "$0.059",
+  price: "$0.031",
 
   description:
     "ENS name ↔ Ethereum address resolution. Forward: pass a .eth name to get the address, avatar, and social profile records. Reverse: pass a 0x address to get its primary ENS name and profile. Returns address, ens_primary, avatar_url, description, twitter, github, discord, telegram, url, and content_hash.",

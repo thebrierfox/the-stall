@@ -167,6 +167,8 @@ const SEEDER_CAP_INPUTS = {
   "equity-quality-screen":     { ticker: "AAPL" },
   "fdic-bank-intel":           { mode: "search", query: "JPMorgan", limit: 3 },
   "address-intel":             { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
+  // Caps requiring params — confirmed 500 without (added 2026-07-14 C1 fix)
+  "pypi-intel":                { package: "requests" },
 };
 
 // ──────────────────────────────────────────────────────────────────────────────

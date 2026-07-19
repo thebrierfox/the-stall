@@ -132,7 +132,7 @@ function logPaidCall(capName, price, query, statusCode, ip) {
 //           2. res.on('finish') fallback: reads res.getHeader() after response ends.
 //           Intercept is primary; getHeader fallback covers non-setHeader write paths.
 // ip:       caller IP for debug capture when payer extraction fails
-function logSettlement(capName, price, query, statusCode, res, ip, xPayment) {
+function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req) {
   try {
     // Extract payer from X-PAYMENT challenge header (available synchronously — it's a
     // request header set before the handler runs). Expands the extraction chain to cover
@@ -196,6 +196,9 @@ function logSettlement(capName, price, query, statusCode, res, ip, xPayment) {
         const entry = JSON.stringify({
           ts, cap: capName, price, status: statusCode,
           ip: ip || "unknown", payer, tx_hash: txHash, receipt: receiptRaw,
+          referer: req?.get("referer") || req?.get("referrer") || null,
+          user_agent: req?.get("user-agent") || null,
+          origin: req?.get("origin") || null,
           ...(rawXPaymentCapture ? { _raw_xpayment_debug: rawXPaymentCapture } : {}),
         });
         appendFileSync(SETTLEMENT_LOG, entry + "\n");
@@ -1318,7 +1321,7 @@ for (const cap of capabilities) {
       const missing = required.filter(p => params[p] === undefined || params[p] === "");
       if (missing.length > 0) {
         logPaidCall(cap.name, cap.price, params, 400, req.ip);
-        logSettlement(cap.name, cap.price, params, 400, res, req.ip, xPayment);
+        logSettlement(cap.name, cap.price, params, 400, res, req.ip, xPayment, req);
         logCallAudit(req.method, req.path, 400, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
         // Build a ready-to-use example query string from inputSchema descriptions
         const props = cap.inputSchema?.properties || {};
@@ -1343,7 +1346,7 @@ for (const cap of capabilities) {
       try {
         const out = await cap.handler(coerceQuery(params, cap.inputSchema), { req });
         logPaidCall(cap.name, cap.price, params, 200, req.ip);
-        logSettlement(cap.name, cap.price, params, 200, res, req.ip, xPayment);
+        logSettlement(cap.name, cap.price, params, 200, res, req.ip, xPayment, req);
         logCallAudit(req.method, req.path, 200, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
         const relatedCaps = CROSS_CAP_MAP[cap.name];
         if (relatedCaps && relatedCaps.length > 0) {
@@ -1357,7 +1360,7 @@ for (const cap of capabilities) {
         const status = isValidationError ? 400 : isUpstreamUnavailable ? 503 : 500;
         const errorCode = isValidationError ? "bad_request" : isUpstreamUnavailable ? "upstream_unavailable" : "capability_error";
         logPaidCall(cap.name, cap.price, params, status, req.ip);
-        logSettlement(cap.name, cap.price, params, status, res, req.ip, xPayment);
+        logSettlement(cap.name, cap.price, params, status, res, req.ip, xPayment, req);
         logCallAudit(req.method, req.path, status, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
         if (isUpstreamUnavailable) res.setHeader("Retry-After", "5");
         res.status(status).json({ error: errorCode, capability: cap.name, message: String(err?.message || err) });

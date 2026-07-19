@@ -167,6 +167,9 @@ export function buildPolygonRailMiddleware(capabilities) {
           amount_raw: result.amountRaw.toString(),
           rail: "polygon",
           network: "eip155:137",
+          referer: req.headers["referer"] || req.headers["referrer"] || null,
+          user_agent: req.headers["user-agent"] || null,
+          origin: req.headers["origin"] || null,
         }) + "\n"
       );
     } catch { /* never crash on log failure */ }

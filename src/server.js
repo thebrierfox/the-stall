@@ -342,10 +342,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// Diagnostic: capture full request headers from null-payer IPs for payment-intent analysis.
-// Logging only — no behavior change. Remove after diagnosis.
+// Diagnostic: capture non-sensitive request metadata from null-payer IPs for
+// payment-intent analysis. Sensitive header values (auth/payment/session/keys)
+// are never persisted — presence is recorded as a boolean flag only.
 const GCP_CAPTURE_LOG = join(LOG_DIR, "gcp_capture.jsonl");
 const CAPTURE_IPS = new Set(["34.158.104.72", "104.131.41.96"]);
+const SENSITIVE_HEADER_NAMES = new Set([
+  "authorization", "proxy-authorization", "payment-signature", "x-payment",
+  "x-payment-response", "payment-required", "x-internal-key", "cookie",
+  "set-cookie", "api-key", "x-api-key",
+]);
+function hasSensitivePaymentHeaders(headers) {
+  return Object.keys(headers).some(k => SENSITIVE_HEADER_NAMES.has(k.toLowerCase()));
+}
 app.use((req, res, next) => {
   try {
     const xfwd = String(req.headers["x-forwarded-for"] || "");
@@ -355,8 +364,12 @@ app.use((req, res, next) => {
         ts: new Date().toISOString(),
         method: req.method,
         path: req.path,
-        ip: req.ip,
-        headers: req.headers,
+        content_type: req.headers["content-type"] || null,
+        content_length: req.headers["content-length"] || null,
+        user_agent: req.headers["user-agent"] || null,
+        request_id: req.headers["x-request-id"] || null,
+        ip_class: req.ip ? "present" : "absent",
+        has_payment_headers: hasSensitivePaymentHeaders(req.headers),
       }) + "\n");
     }
   } catch (_) {}

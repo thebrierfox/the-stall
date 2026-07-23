@@ -4381,7 +4381,7 @@
     },
     {
       "name": "llm-proxy",
-      "description": "LLM inference proxy — pay USDC, get AI responses without managing API keys. Accepts a prompt and optional system instruction, forwards to OpenAI, returns the completion. Supports gpt-4o-mini (default, fast and cost-efficient) or gpt-4o (more capable). Agents that already hold USDC on Base can call this to run one-off LLM tasks without onboarding to OpenAI. Max 2,000 output tokens per call. Price: $0.010/call.",
+      "description": "LLM inference proxy — pay USDC, get AI responses without managing API keys. Accepts a prompt and optional system instruction, forwards to OpenAI, returns the completion. Runs gpt-4o-mini (fast, cost-efficient). Agents that already hold USDC on Base can call this to run one-off LLM tasks without onboarding to OpenAI. Max 2,000 output tokens per call, max 8,000 combined input characters. Price: $0.021/call.",
       "inputSchema": {
         "type": "object",
         "required": [
@@ -4399,16 +4399,15 @@
           "model": {
             "type": "string",
             "enum": [
-              "gpt-4o-mini",
-              "gpt-4o"
+              "gpt-4o-mini"
             ],
-            "description": "Model to use. Default: gpt-4o-mini."
+            "description": "Model to use. Only gpt-4o-mini is available on this flat-price route."
           },
           "max_tokens": {
             "type": "integer",
             "minimum": 1,
             "maximum": 2000,
-            "description": "Maximum output tokens. Default: 500."
+            "description": "Maximum output tokens. Default: 500. Increase for longer outputs (max 2,000)."
           }
         },
         "additionalProperties": false

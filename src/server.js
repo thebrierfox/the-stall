@@ -31,7 +31,7 @@ import { loadCapabilities } from "./registry.js";
 
 const { version: PKG_VERSION } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url)));
 import { buildPaymentMiddleware } from "./payment.js";
-import { makeMcpHandler, makeSSEHandlers } from "./mcp.js";
+import { makeMcpHandler, makeSSEHandlers, getMcpPaymentMode, readMcpPaymentStats } from "./mcp.js";
 import { mountRetainer } from "./retainer/index.js";
 import { makeLiveProvider } from "./retainer/risk.js";
 import { mountStripeRail } from "./stripe-rail.js";
@@ -390,6 +390,7 @@ app.get("/health", (_req, res) =>
     capabilities: capabilities.map((c) => c.name),
     rails: {
       x402: true,
+      mcp_x402: { mode: getMcpPaymentMode(), discovery_free: true, tool_calls_paid: getMcpPaymentMode() !== "off" },
       stripe: stripeRail?.enabled
         ? { enabled: true, mode: stripeRail.isTestMode ? "test" : "live" }
         : { enabled: false },
@@ -812,13 +813,13 @@ app.get("/.well-known/agent.json", (_req, res) =>
         type: "mcp",
         transport: "streamable-http",
         url: `${BASE_URL}/mcp`,
-        description: "MCP Streamable HTTP interface — all capabilities available free, no wallet required",
+        description: "MCP Streamable HTTP interface — discovery and tools/list are free; selected tools/call executions require native x402 payment",
       },
       {
         type: "mcp",
         transport: "sse",
         url: `${BASE_URL}/sse`,
-        description: "MCP SSE interface — legacy SSE transport for clients that require it",
+        description: "MCP SSE interface — discovery is free; selected tools/call executions require native x402 payment",
       },
     ],
   })
@@ -857,7 +858,7 @@ app.get("/.well-known/erc8004.json", (_req, res) =>
 app.get("/.well-known/mcp/server-card.json", (_req, res) =>
   res.json({
     name: "The Stall",
-    description: `Domain-agnostic x402 capability chassis by IntuiTek¹. ${capabilities.length} AI-callable data tools: stock prices, market overview, DeFi yields, token security, wallet screening, gas prices, macro indicators, prediction markets, company due diligence, research papers, domain WHOIS, email verification, flight tracking, weather, and more. MCP over Streamable HTTP — no wallet, no API keys, no accounts.`,
+    description: `Domain-agnostic x402 capability chassis by IntuiTek¹. ${capabilities.length} AI-callable data tools: stock prices, market overview, DeFi yields, token security, wallet screening, gas prices, macro indicators, prediction markets, company due diligence, research papers, domain WHOIS, email verification, flight tracking, weather, and more. MCP over Streamable HTTP — free discovery with native x402 pay-per-call execution.`,
     version: PKG_VERSION,
     tools: capabilities.map((c) => ({
       name: c.name,
@@ -1104,6 +1105,7 @@ app.get("/stats", (_req, res) => {
     first_call_at: stats.since,
     network: NETWORK,
     base_url: BASE_URL,
+    mcp_payments: readMcpPaymentStats(),
     ts: new Date().toISOString(),
   });
 });
@@ -1155,6 +1157,7 @@ app.get("/metrics", (_req, res) => {
     top_probed_caps: Object.entries(probesByCap).sort((a, b) => b[1] - a[1]).slice(0, 15),
     top_paid_caps: Object.entries(paidByCap).sort((a, b) => b[1] - a[1]).slice(0, 15),
     top_user_agents: Object.entries(uaGroups).sort((a, b) => b[1] - a[1]).slice(0, 10),
+    mcp_payments: readMcpPaymentStats(),
     request_total: requests.length,
     ts: new Date().toISOString(),
   });
@@ -1171,7 +1174,7 @@ app.get("/mcp", (_req, res) =>
       protocolVersion: "2024-11-05",
       capabilityCount: capabilities.length,
       endpoint: `${BASE_URL}/mcp`,
-      note: "POST to this endpoint to send MCP messages",
+      note: "POST to this endpoint. initialize and tools/list are free; paid tools/call return native x402 requirements.",
     },
     id: null,
   })

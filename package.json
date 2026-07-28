@@ -1,7 +1,7 @@
 {
   "name": "the-stall",
   "version": "4.97.0",
-  "description": "292 pay-per-call AI data tools via MCP and x402 \u2014 no API keys required. YouTube video analytics (engagement rate, view velocity, VIRAL/HIGH_PERFORMING/AVERAGE/UNDERPERFORMING tier), YouTube keyword research (autocomplete + intent clusters), iOS App Store intel, CPI inflation trend signal, short interest squeeze risk, SEC insider trading, institutional ownership, activist investors, M&A intel, VC funding, equity fundamentals, options flow unusual sweep detection, earnings quality Beneish M-Score, on-chain address intelligence, retail sector brief (XRT/XLY/XLP/AMZN/WMT/TGT/COST/HD/LOW with regime classification), and 271+ more. USDC on Base.",
+  "description": "292 pay-per-call AI data tools via MCP and x402 — no API keys required. YouTube video analytics (engagement rate, view velocity, VIRAL/HIGH_PERFORMING/AVERAGE/UNDERPERFORMING tier), YouTube keyword research (autocomplete + intent clusters), iOS App Store intel, CPI inflation trend signal, short interest squeeze risk, SEC insider trading, institutional ownership, activist investors, M&A intel, VC funding, equity fundamentals, options flow unusual sweep detection, earnings quality Beneish M-Score, on-chain address intelligence, retail sector brief (XRT/XLY/XLP/AMZN/WMT/TGT/COST/HD/LOW with regime classification), and 271+ more. USDC on Base.",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -20,6 +20,7 @@
     "@x402/evm": "^2.14.0",
     "@x402/express": "^2.14.0",
     "@x402/extensions": "^2.15.0",
+    "@x402/mcp": "2.19.0",
     "better-sqlite3": "^11.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

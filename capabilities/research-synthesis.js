@@ -208,6 +208,7 @@ export default {
       sources_queried:  { type: "integer" },
       sources_responded:{ type: "integer" },
       source_breakdown: { type: "object" },
+      generated_at:     { type: "string", description: "ISO-8601 timestamp of when this report was synthesized (report is fetched live, never cached)." },
     },
   },
 
@@ -256,6 +257,7 @@ export default {
       sources_queried:   sourceNames.length,
       sources_responded: responded.length,
       source_breakdown:  breakdown,
+      generated_at:      new Date().toISOString(),
     };
   },
 };

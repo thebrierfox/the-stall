@@ -451,6 +451,108 @@ app.get("/catalog", (_req, res) =>
   })
 );
 
+const STATIC_PAGE_STYLE = `
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#0a0a0f;color:#e2e8f0;min-height:100vh;padding:3rem 1.5rem;line-height:1.6}
+    .wrap{max-width:640px;margin:0 auto}
+    .brand{font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:#6366f1;margin-bottom:0.75rem}
+    h1{font-size:2rem;font-weight:700;margin-bottom:1.5rem}
+    h2{font-size:1.1rem;font-weight:600;margin:2rem 0 0.5rem;color:#c7d2fe}
+    p{color:#94a3b8;margin-bottom:0.75rem}
+    a{color:#818cf8;text-decoration:none}
+    a:hover{text-decoration:underline}
+    ul{color:#94a3b8;margin:0.5rem 0 0.75rem 1.25rem}
+    code{background:#1e1b3a;color:#c7d2fe;padding:0.15rem 0.4rem;border-radius:0.25rem;font-size:0.9em}
+    .back{display:inline-block;margin-top:2.5rem;font-size:0.85rem}
+    .footer{margin-top:3rem;font-size:0.75rem;color:#334155}
+`;
+
+app.get("/privacy", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Privacy Policy — The Stall</title>
+  <style>${STATIC_PAGE_STYLE}</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">IntuiTek¹</div>
+    <h1>Privacy Policy</h1>
+    <p>The Stall is a pay-per-call API. There are no accounts, no signup, and no login — access is per-request, authorized by an on-chain payment (x402/USDC on Base) or a Stripe charge.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li>The paying wallet address or Stripe transaction reference for the request (public, on-chain data in the x402 case)</li>
+      <li>Request metadata: timestamp, capability called, response status</li>
+    </ul>
+    <p>This is used only to fulfill the request, reconcile billing, and detect abuse. We do not require or collect names, emails, or other personal identifiers to use the API.</p>
+
+    <h2>What we don't do</h2>
+    <ul>
+      <li>No cookies, no browser tracking, no third-party analytics</li>
+      <li>No sale or sharing of request data with third parties</li>
+      <li>No custody of funds beyond standard payment settlement</li>
+    </ul>
+
+    <h2>Retention</h2>
+    <p>Operational logs are retained for service reliability and abuse prevention. On-chain payment records are public and immutable by nature of the blockchain and are outside our control to delete.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: <a href="mailto:kyle@intuitek.ai">kyle@intuitek.ai</a></p>
+
+    <div class="footer">Effective 2026-07-29 · Built by <a href="https://intuitek.ai">IntuiTek¹</a></div>
+    <a class="back" href="/">&larr; Back to The Stall</a>
+  </div>
+</body>
+</html>`);
+});
+
+app.get("/docs", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Docs — The Stall</title>
+  <style>${STATIC_PAGE_STYLE}</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">IntuiTek¹</div>
+    <h1>Using The Stall</h1>
+    <p>The Stall is a domain-agnostic x402 capability chassis: ${capabilities.length} AI-callable data tools, priced per call, paid in USDC on Base mainnet. No API keys, no signup.</p>
+
+    <h2>1. Discover</h2>
+    <p>Browse the full capability list, prices, and schemas at <a href="/catalog">/catalog</a>, or the OpenAPI 3.1 spec at <a href="/openapi.json">/openapi.json</a>.</p>
+
+    <h2>2. Call a capability</h2>
+    <p><code>GET /cap/:name</code> — an unpaid request returns an HTTP 402 with an x402 payment challenge in the body. Submit the on-chain USDC payment described in the challenge and retry the same request with the payment attached to receive the response.</p>
+
+    <h2>3. MCP (agent) access</h2>
+    <p>Point any MCP-compatible client at <a href="/mcp">/mcp</a> (Streamable HTTP). Tool discovery is free; individual tool calls are paid the same way as the REST capabilities. Server card: <a href="/.well-known/mcp/server-card.json">/.well-known/mcp/server-card.json</a>.</p>
+
+    <h2>Reference</h2>
+    <ul>
+      <li><a href="/.well-known/x402">/.well-known/x402</a> — x402 manifest</li>
+      <li><a href="/.well-known/agent.json">/.well-known/agent.json</a> — agent card</li>
+      <li><a href="/llms.txt">/llms.txt</a> — machine-readable summary for LLM/agent discovery</li>
+      <li><a href="/stats">/stats</a> — live usage stats</li>
+      <li><a href="/privacy">/privacy</a> — privacy policy</li>
+    </ul>
+
+    <h2>Support</h2>
+    <p><a href="mailto:kyle@intuitek.ai">kyle@intuitek.ai</a></p>
+
+    <a class="back" href="/">&larr; Back to The Stall</a>
+  </div>
+</body>
+</html>`);
+});
+
 // ── OpenAPI 3.1.0 spec — required params, schemas, security per endpoint ─────
 // Issue constraints addressed here:
 //   - Required query params have required:true (per inputSchema.required arrays)

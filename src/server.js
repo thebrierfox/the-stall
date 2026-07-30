@@ -132,7 +132,7 @@ function logPaidCall(capName, price, query, statusCode, ip) {
 //           2. res.on('finish') fallback: reads res.getHeader() after response ends.
 //           Intercept is primary; getHeader fallback covers non-setHeader write paths.
 // ip:       caller IP for debug capture when payer extraction fails
-function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req) {
+function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req, deliveredErrorPayload = false) {
   try {
     // Extract payer from X-PAYMENT challenge header (available synchronously — it's a
     // request header set before the handler runs). Expands the extraction chain to cover
@@ -199,6 +199,7 @@ function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req
           referer: req?.get("referer") || req?.get("referrer") || null,
           user_agent: req?.get("user-agent") || null,
           origin: req?.get("origin") || null,
+          delivered_error_payload: deliveredErrorPayload,
           ...(rawXPaymentCapture ? { _raw_xpayment_debug: rawXPaymentCapture } : {}),
         });
         appendFileSync(SETTLEMENT_LOG, entry + "\n");
@@ -1463,8 +1464,14 @@ for (const cap of capabilities) {
 
       try {
         const out = await cap.handler(coerceQuery(params, cap.inputSchema), { req });
+        // Some capability handlers catch their own upstream failures and return a
+        // 200-shaped object with a top-level `error` field instead of throwing (e.g.
+        // research-synthesis's {error:"no_sources"}/{error:"synthesis_failed"}) — the
+        // caller is billed full price for a response that delivered no result. Flag it
+        // in the settlement record so this isn't invisible to revenue/quality analysis.
+        const deliveredErrorPayload = !!(out && typeof out === "object" && !Array.isArray(out) && typeof out.error === "string");
         logPaidCall(cap.name, cap.price, params, 200, req.ip);
-        logSettlement(cap.name, cap.price, params, 200, res, req.ip, xPayment, req);
+        logSettlement(cap.name, cap.price, params, 200, res, req.ip, xPayment, req, deliveredErrorPayload);
         logCallAudit(req.method, req.path, 200, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
         const relatedCaps = CROSS_CAP_MAP[cap.name];
         if (relatedCaps && relatedCaps.length > 0) {

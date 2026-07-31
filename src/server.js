@@ -23,6 +23,7 @@ process.on('unhandledRejection', (reason) => {
 
 import "dotenv/config";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from "fs";
 import { exec } from "child_process";
 import { join, dirname } from "path";
@@ -1374,6 +1375,21 @@ const polygonRailMiddleware = buildPolygonRailMiddleware(capabilities);
 // T3-1 Move #3: PayAI facilitator canary (ping cap, 30d window 2026-07-07→2026-08-06)
 const payAICanaryMiddleware = buildPayAICanaryMiddleware(capabilities, SOLANA_WALLET, PAY_TO);
 const STALL_INTERNAL_KEY = process.env.STALL_INTERNAL_KEY || null;
+
+// Anomaly #130/#159: /cap/* had no rate limiting. Must sit BEFORE the payment/paywall
+// chain below — anything mounted after it would 429 a request that already settled
+// on-chain (customer pays, gets no data). Generous per-IP threshold so it only
+// backstops abuse pre-payment and never rejects a legitimate high-volume payer.
+const capRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.ip === "127.0.0.1" || req.ip === "::1" || req.ip === "::ffff:127.0.0.1",
+  message: { error: "rate_limited", message: "Too many requests — retry after a short delay." },
+});
+app.use("/cap", capRateLimiter);
+
 app.use((req, res, next) => {
   if (req.fiatPaid) return next();
   if (STALL_INTERNAL_KEY && req.headers["x-internal-key"] === STALL_INTERNAL_KEY) return next();

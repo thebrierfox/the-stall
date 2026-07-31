@@ -24,6 +24,7 @@
     "better-sqlite3": "^11.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
     "franc": "^6.2.0",
     "franc-all": "^7.2.0",
     "franc-min": "^6.2.0",
@@ -31,6 +32,11 @@
     "stripe": "^22.2.2",
     "viem": "2.51.3",
     "zod": "3.25.76"
+  },
+  "overrides": {
+    "mppx": {
+      "express": "$express"
+    }
   },
   "engines": {
     "node": ">=20"

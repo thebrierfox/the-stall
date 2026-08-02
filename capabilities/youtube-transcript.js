@@ -82,7 +82,7 @@ function parseVTT(vtt, maxSegs = 600) {
 
 export default {
   name:  "youtube-transcript",
-  price: "$0.039",
+  price: "$0.010",
   tags: ["youtube", "transcript", "speech-to-text", "media"],
 
   description:

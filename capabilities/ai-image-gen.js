@@ -17,7 +17,7 @@ export default {
   price: "$0.289",
 
   description:
-    "Generate an AI image from a text prompt using DALL-E 3. Returns a public URL for the image (hosted for 1 hour) plus the model's revised prompt. Supports vivid or natural style, and three aspect ratios: square (1024×1024), portrait (1024×1792), or landscape (1792×1024). $0.080/image — 20% below closest x402 competitor. Output is base64-encoded PNG or a direct URL depending on response_format.",
+    "Generate an AI image from a text prompt using DALL-E 3. Returns a public URL for the image (hosted for 1 hour) plus the model's revised prompt. Supports vivid or natural style, and three aspect ratios: square (1024×1024), portrait (1024×1792), or landscape (1792×1024). $0.289/image. Output is base64-encoded PNG or a direct URL depending on response_format.",
 
   inputSchema: {
     type: "object",

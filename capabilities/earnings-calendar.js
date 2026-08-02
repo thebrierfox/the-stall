@@ -55,6 +55,7 @@ async function fetchCalendar() {
 export default {
   name: "earnings-calendar",
   price: "$0.010",
+  tags: ["earnings", "stocks", "calendar", "market-data"],
 
   description:
     "Earnings calendar for upcoming US stock reports — earnings date, EPS estimate, pre/post-market timing. Filter by ticker for per-company lookups, or scan a date window (1–90 days ahead) for calendar-driven research automation. Data: Alpha Vantage 3-month calendar, cached 2 hr.",

@@ -13,6 +13,7 @@ const UA      = "Mozilla/5.0 (compatible; the-stall/0.4; +https://intuitek.ai)";
 export default {
   name: "us-stock-price",
   price: "$0.005",
+  tags: ["stocks", "market-data", "trading", "price"],
 
   description:
     "Returns current US stock price and intraday metrics (change %, volume, day high/low, 52-week range) for any NYSE/NASDAQ stock ticker. Sourced from Yahoo Finance public data — no API key, live during market hours.",

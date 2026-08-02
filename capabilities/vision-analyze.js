@@ -30,6 +30,7 @@ const ANALYSIS_MODES = {
 export default {
   name:  "vision-analyze",
   price: "$0.261",
+  tags: ["vision", "image-analysis", "evidence", "multimodal"],
 
   description:
     "Analyze any image URL using GPT-4o-mini vision. Returns structured analysis based on the mode: describe (full description), ocr (text extraction), chart (data/trend extraction), ui (interface analysis), identify (object/subject ID), or qa (answer a specific question about the image). Input must be a publicly accessible image URL (JPEG, PNG, GIF, WebP). $0.050/call.",

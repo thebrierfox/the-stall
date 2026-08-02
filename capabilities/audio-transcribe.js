@@ -103,6 +103,7 @@ async function transcribe(buffer, url, language) {
 export default {
   name:  "audio-transcribe",
   price: "$0.213",
+  tags: ["audio", "transcription", "speech-to-text", "evidence"],
 
   description:
     "Transcribe audio from any publicly accessible URL using OpenAI Whisper. Supports mp3, mp4, m4a, wav, webm, ogg, flac, and wma up to 24 MB. Returns the full transcript text, detected language, and estimated duration in seconds. Optionally accepts an ISO 639-1 language hint to improve accuracy. Useful for processing voice memos, meeting recordings, podcast snippets, interview clips, and audio attached to social media. Undercuts orbisapi.com audio-transcription-api by 24%.",

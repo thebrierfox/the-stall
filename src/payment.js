@@ -11,6 +11,21 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { getAuthHeaders } from "@coinbase/cdp-sdk/auth";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 
+// Directive 103 / STALL_REVENUE_RECOVERY_20260802 P3: the six revenue-front
+// routes get a full Bazaar output.example (built from their outputSchema).
+// Scoped narrowly — most of the catalog's ~300 outputSchemas contain
+// nullable-union or bare-object fields the SDK's own bazaar validator rejects
+// as an example, which would spam startup logs / drop the extension for
+// routes outside this directive's authorization if applied catalog-wide.
+const REVENUE_FRONT_ROUTES = new Set([
+  "us-stock-price",
+  "earnings-calendar",
+  "equity-brief",
+  "youtube-transcript",
+  "audio-transcribe",
+  "vision-analyze",
+]);
+
 // Convert legacy network names to CAIP-2 identifiers required by x402 v2.
 function toCAIP2(network) {
   if (network === "base") return "eip155:8453";
@@ -34,6 +49,13 @@ function toCAIP2(network) {
 // an empty {} fails required-field checks, silently excluding caps from indexing.
 // Handles pattern, minimum, minLength, minItems, and nested object required fields.
 function exampleForProp(prop) {
+  // Nullable union types (e.g. `type: ["integer", "null"]`) — recurse on the
+  // first non-null branch so the example still matches the declared schema.
+  if (Array.isArray(prop.type)) {
+    const nonNull = prop.type.find((t) => t !== "null");
+    if (nonNull) return exampleForProp({ ...prop, type: nonNull });
+    return null;
+  }
   if (prop.enum?.length > 0) return prop.enum[0];
   if (prop.type === "number" || prop.type === "integer")
     return typeof prop.minimum === "number" ? prop.minimum : 1;
@@ -43,7 +65,8 @@ function exampleForProp(prop) {
     const itemEx = prop.items ? exampleForProp(prop.items) : "example";
     return Array.from({ length: count }, () => itemEx);
   }
-  if (prop.type === "object" && prop.properties) {
+  if (prop.type === "object") {
+    if (!prop.properties) return {};
     const obj = {};
     const req = new Set(prop.required || Object.keys(prop.properties));
     for (const [k, v] of Object.entries(prop.properties)) {
@@ -65,6 +88,17 @@ function buildExampleInput(inputSchema) {
   const example = {};
   for (const [name, prop] of Object.entries(inputSchema.properties)) {
     if (required.has(name)) example[name] = exampleForProp(prop);
+  }
+  return Object.keys(example).length > 0 ? example : undefined;
+}
+
+// Build a representative output example from a capability's outputSchema so
+// Bazaar listings show real response shape, not just the input contract.
+function buildExampleOutput(outputSchema) {
+  if (!outputSchema?.properties) return undefined;
+  const example = {};
+  for (const [name, prop] of Object.entries(outputSchema.properties)) {
+    example[name] = exampleForProp(prop);
   }
   return Object.keys(example).length > 0 ? example : undefined;
 }
@@ -94,10 +128,14 @@ export function buildPaymentMiddleware({ payTo, network, facilitator, capabiliti
       },
       description: cap.description.slice(0, 499),
       mimeType: "application/json",
+      ...(cap.tags?.length ? { tags: cap.tags } : {}),
       extensions: declareDiscoveryExtension({
         method: "GET",
         inputSchema: cap.inputSchema || { type: "object", properties: {} },
         input: buildExampleInput(cap.inputSchema),
+        ...(cap.outputSchema && REVENUE_FRONT_ROUTES.has(cap.name)
+          ? { output: { schema: cap.outputSchema, example: buildExampleOutput(cap.outputSchema) } }
+          : {}),
       }),
     };
     routeConfig[`GET /cap/${cap.name}`] = capPaymentConfig;

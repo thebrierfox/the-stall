@@ -83,6 +83,7 @@ function parseVTT(vtt, maxSegs = 600) {
 export default {
   name:  "youtube-transcript",
   price: "$0.039",
+  tags: ["youtube", "transcript", "speech-to-text", "media"],
 
   description:
     "Full transcript extraction for any YouTube video. Downloads auto-generated English subtitles via yt-dlp (no auth), parses VTT into timestamped segments with deduplication, and returns both segment array and plain-text transcript. Format 'text' returns only the text string. Accepts any YouTube URL format or bare 11-character video ID.",

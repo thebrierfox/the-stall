@@ -41,6 +41,15 @@ const RPC = process.env.COINBASE_BASE_RPC || TENDERLY_RPC;
 // Revenue wallet — payments destined here get EIP-3009 bypass (CDP broken since Jun26T21Z)
 const REVENUE_WALLET = (process.env.WALLET_ADDRESS || process.env.X402_PAY_TO || "").toLowerCase();
 
+// Caps for which we attempt CDP /settle FIRST, falling back to the EIP-3009
+// bypass ONLY on a definitively-rejected, nonce-unconsumed outcome. CDP-routed
+// settles are the only thing that produces a Bazaar ingestion event.
+// Code default is intentionally `ping` only. Widen via the service environment.
+const CDP_FIRST_CAPS = new Set(
+  (process.env.CDP_FIRST_CAPS ?? "ping")
+    .split(",").map(s => s.trim()).filter(Boolean)
+);
+
 // EIP-3009 ABI — packed-bytes signature variant (matches x402/evm facilitator)
 const EIP3009_ABI = parseAbi([
   "function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature)",
@@ -103,9 +112,57 @@ async function proxyToCdp(endpoint, body, method = "POST") {
     method,
     headers: { "Content-Type": "application/json", ...authH },
     body: method === "POST" ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
   });
-  const data = await resp.json();
-  return { status: resp.status, data };
+  const raw = await resp.text();
+  let data;
+  try {
+    data = raw ? JSON.parse(raw) : undefined;
+  } catch {
+    data = undefined; // non-JSON body — caller classifies this as AMBIGUOUS, not a thrown exception
+  }
+  return { status: resp.status, data, raw };
+}
+
+// Classify a CDP /settle response into SUCCESS | DEFINITIVE_REJECTION | AMBIGUOUS.
+// AMBIGUOUS covers a request-level failure (timeout/network/abort) or a response
+// that parsed but carries no clear success/failure signal (non-JSON body, missing
+// `success` field). Only AMBIGUOUS/DEFINITIVE_REJECTION go through on-chain
+// reconciliation before the caller decides whether to fall through to the bypass.
+function classifyCdpOutcome(cdpResult, err) {
+  if (err) return { cls: "AMBIGUOUS", detail: `request_error:${err.message.slice(0, 100)}` };
+  const { status, data, raw } = cdpResult;
+  if (data === undefined) {
+    return { cls: "AMBIGUOUS", detail: `unparseable_body status=${status} raw=${(raw || "").slice(0, 140)}` };
+  }
+  if (data.success === true) return { cls: "SUCCESS", data };
+  if (data.success === false) return { cls: "DEFINITIVE_REJECTION", detail: JSON.stringify(data).slice(0, 200) };
+  return { cls: "AMBIGUOUS", detail: `missing_success_field status=${status} body=${JSON.stringify(data).slice(0, 140)}` };
+}
+
+// Reconcile an ambiguous or rejected CDP outcome against on-chain authorization
+// state before letting the local EIP-3009 bypass touch the same nonce. CDP can
+// broadcast/confirm a transfer on-chain while its HTTP response times out,
+// truncates, or reads as a rejection — falling through blindly in that case
+// would attempt the SAME authorization twice: the nonce is already consumed,
+// the bypass reverts, and the payer paid but got no data (paid-but-denied).
+// Retries the on-chain read once; if the read itself keeps failing, fails
+// toward SERVING the paid customer rather than toward denying them.
+async function reconcileAmbiguous(auth) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const used = await publicClient.readContract({
+        address: USDC_ADDR, abi: EIP3009_ABI,
+        functionName: "authorizationState",
+        args: [getAddress(auth.from), auth.nonce],
+      });
+      return { consumed: used, readFailed: false };
+    } catch (e) {
+      if (attempt === 0) continue;
+      log(`[cdp-ambiguous] authorizationState read FAILED after retry — ${e.message.slice(0, 100)} — failing toward serving paid customer`);
+      return { consumed: true, readFailed: true };
+    }
+  }
 }
 
 const app = express();
@@ -148,12 +205,23 @@ function releaseNonce(key, delayMs = 30_000) {
 // ── GET /supported ───────────────────────────────────────────────────────────
 app.get("/supported", async (_req, res) => {
   try {
-    const { status, data } = await proxyToCdp("/supported", undefined, "GET");
+    const { status, data, raw } = await proxyToCdp("/supported", undefined, "GET");
+    if (data === undefined) {
+      log(`[supported] CDP returned unparseable body status=${status} raw=${(raw || "").slice(0, 140)}`);
+      return res.json({
+        kinds: [{ x402Version: 2, scheme: "exact", network: "eip155:8453", extra: {} }],
+      });
+    }
+    // @x402/core >=2.19 requires the response keyed as `kinds`, not the older
+    // `kindsSupported` name some facilitator responses (incl. CDP) still use.
+    if (data && data.kinds === undefined && Array.isArray(data.kindsSupported)) {
+      data.kinds = data.kindsSupported;
+    }
     return res.status(status).json(data);
   } catch (e) {
     log(`[supported] proxy error: ${e.message.slice(0, 80)}`);
     return res.json({
-      kindsSupported: [{ x402Version: 2, scheme: "exact", network: "eip155:8453", extra: {} }],
+      kinds: [{ x402Version: 2, scheme: "exact", network: "eip155:8453", extra: {} }],
     });
   }
 });
@@ -194,7 +262,11 @@ app.post("/verify", async (req, res) => {
 
   // Payments to other recipients → proxy to CDP (fallback, not expected in practice)
   try {
-    const { status, data } = await proxyToCdp("/verify", req.body);
+    const { status, data, raw } = await proxyToCdp("/verify", req.body);
+    if (data === undefined) {
+      log(`[verify/proxy] CDP returned unparseable body status=${status} raw=${(raw || "").slice(0, 140)}`);
+      return res.status(502).json({ isValid: false, invalidReason: `unparseable_cdp_response status=${status}` });
+    }
     return res.status(status).json(data);
   } catch (e) {
     log(`[verify/proxy] error: ${e.message.slice(0, 80)}`);
@@ -211,20 +283,42 @@ app.post("/settle", async (req, res) => {
     // Test whether the 6/26 CDP payment-method wall is still up under x402 v2.
     // Attempt CDP settle first for ping only; fall through to EIP-3009 on failure.
     // If CDP succeeds: wall is down → Bazaar indexing resumes for ping (log PASS).
-    // If CDP fails: wall still up → log FAIL + continue to bypass. No revenue risk.
+    // If CDP fails (AMBIGUOUS or DEFINITIVE_REJECTION): reconcile on-chain authorization
+    // state before falling through — a consumed nonce means CDP already settled the
+    // payer, so we serve the data instead of re-attempting the same authorization.
     const rawResource = outerPayload?.resource;
     const resourceUrl = typeof rawResource === "string" ? rawResource : (rawResource?.url || "");
-    if (resourceUrl.includes("/cap/ping") && CDP_KEY_ID && CDP_KEY_SECRET) {
+    const capMatch = /\/cap\/([A-Za-z0-9._-]+)/.exec(resourceUrl);
+    const capName = capMatch ? capMatch[1] : "";
+    if (capName && CDP_FIRST_CAPS.has(capName) && CDP_KEY_ID && CDP_KEY_SECRET) {
+      const auth = outerPayload.payload.authorization;
+      let cdpResult, cdpErr;
       try {
-        const { status: cdpStatus, data: cdpData } = await proxyToCdp("/settle", req.body);
-        if (cdpData?.success) {
-          log(`[cdp-canary] PASS — CDP wall DOWN ping indexed via CDP tx=${cdpData.transaction || "?"}`);
-          return res.status(cdpStatus).json(cdpData);
-        }
-        log(`[cdp-canary] FAIL — CDP rejected ping: ${JSON.stringify(cdpData).slice(0, 140)}`);
+        cdpResult = await proxyToCdp("/settle", req.body);
       } catch (e) {
-        log(`[cdp-canary] FAIL (exc) — ${e.message.slice(0, 80)}`);
+        cdpErr = e;
       }
+      const outcome = classifyCdpOutcome(cdpResult, cdpErr);
+
+      if (outcome.cls === "SUCCESS") {
+        log(`[cdp-canary] PASS — CDP wall DOWN ${capName} indexed via CDP tx=${outcome.data.transaction || "?"}`);
+        return res.status(cdpResult.status).json(outcome.data);
+      }
+
+      log(outcome.cls === "AMBIGUOUS"
+        ? `[cdp-ambiguous] ${capName} — ${outcome.detail}`
+        : `[cdp-canary] FAIL — CDP rejected ${capName}: ${outcome.detail}`);
+
+      // Both AMBIGUOUS and DEFINITIVE_REJECTION require on-chain confirmation that
+      // the authorization was NOT consumed before the local bypass touches the same
+      // nonce — CDP can broadcast/confirm on-chain while its HTTP response is lost,
+      // truncated, or reads as a rejection.
+      const { consumed, readFailed } = await reconcileAmbiguous(auth);
+      if (consumed) {
+        log(`[cdp-ambiguous] CONSUMED${readFailed ? " (read-failed, failing toward serving)" : ""} — serving data, tx hash unknown, from=${getAddress(auth.from)}`);
+        return res.json({ success: true, transaction: "", network: "eip155:8453" });
+      }
+      log(`[cdp-canary] nonce unused — falling through to bypass normally`);
       // Fall through to EIP-3009 bypass
     }
     // ── end CDP canary (kill 2026-08-12) ─────────────────────────────────────
@@ -297,7 +391,11 @@ app.post("/settle", async (req, res) => {
 
   // Payments to other recipients → proxy to CDP (fallback, not expected in practice)
   try {
-    const { status, data } = await proxyToCdp("/settle", req.body);
+    const { status, data, raw } = await proxyToCdp("/settle", req.body);
+    if (data === undefined) {
+      log(`[settle/proxy] CDP returned unparseable body status=${status} raw=${(raw || "").slice(0, 140)}`);
+      return res.status(502).json({ success: false, errorReason: `unparseable_cdp_response status=${status}` });
+    }
     return res.status(status).json(data);
   } catch (e) {
     log(`[settle/proxy] error: ${e.message.slice(0, 80)}`);

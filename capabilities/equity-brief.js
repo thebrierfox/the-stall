@@ -379,7 +379,7 @@ export default {
   tags: ["equity-research", "stocks", "analysis", "evidence"],
 
   description:
-    "AI-synthesized equity situation brief for any US stock. Gathers five signal layers in parallel — current price/52w range, RSI-14 + SMA20/50/200 trend regime, insider buy/sell activity (SEC EDGAR Form 4, last 60 days), options IV30 + put/call ratio (CBOE), and next earnings date + EPS estimate (Yahoo Finance) — then uses GPT-4o-mini to produce a structured brief: regime label, bull/bear case, dominant risk, agent implication, and a 160-word narrative. Replaces a 4-call agent chain (equity-technicals + us-stock-price + insider-trades + options-snapshot) at $0.350. Free upstreams (no API keys required for data gathering).",
+    "AI-synthesized equity situation brief for any US stock. Gathers five signal layers in parallel — current price/52w range, RSI-14 + SMA20/50/200 trend regime, insider buy/sell activity (SEC EDGAR Form 4, last 60 days), options IV30 + put/call ratio (CBOE), and next earnings date + EPS estimate (Yahoo Finance) — then uses GPT-4o-mini to produce a structured brief: regime label, bull/bear case, dominant risk, agent implication, and a 160-word narrative. Replaces a 4-call agent chain (equity-technicals + us-stock-price + insider-trades + options-snapshot) at $0.370. Free upstreams (no API keys required for data gathering).",
 
   inputSchema: {
     type: "object",

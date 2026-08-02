@@ -33,7 +33,7 @@ export default {
   tags: ["vision", "image-analysis", "evidence", "multimodal"],
 
   description:
-    "Analyze any image URL using GPT-4o-mini vision. Returns structured analysis based on the mode: describe (full description), ocr (text extraction), chart (data/trend extraction), ui (interface analysis), identify (object/subject ID), or qa (answer a specific question about the image). Input must be a publicly accessible image URL (JPEG, PNG, GIF, WebP). $0.050/call.",
+    "Analyze any image URL using GPT-4o-mini vision. Returns structured analysis based on the mode: describe (full description), ocr (text extraction), chart (data/trend extraction), ui (interface analysis), identify (object/subject ID), or qa (answer a specific question about the image). Input must be a publicly accessible image URL (JPEG, PNG, GIF, WebP). $0.261/call.",
 
   inputSchema: {
     type: "object",

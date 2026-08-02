@@ -5,8 +5,11 @@
 // Whisper-1, and returns full transcript text with detected language.
 //
 // Seam: orbisapi.com/proxy/audio-transcription-api-7042e6
-//       532 calls/day · 8 payers · ~$0.0079/call
-//       STALL prices at $0.006 — 24% undercut
+//       532 calls/day · 8 payers · ~$0.0079/call (2026-06 observation)
+//       NOTE: live price ($0.213, see below) is well ABOVE this comp after
+//       two catalog-wide reprice waves (34e34ef, 85cde40) — the "24% undercut"
+//       framing predates those and is stale. Directive 103 (2026-08-02) flags
+//       this class of price/description drift; see anomaly re: BLOCKED_COST_UNKNOWN.
 //
 // Upstream: OpenAI Whisper-1 ($0.006/min) via OPENAI_API_KEY.
 // No local GPU required. In-memory fetch + forward — no temp files.
@@ -106,7 +109,7 @@ export default {
   tags: ["audio", "transcription", "speech-to-text", "evidence"],
 
   description:
-    "Transcribe audio from any publicly accessible URL using OpenAI Whisper. Supports mp3, mp4, m4a, wav, webm, ogg, flac, and wma up to 24 MB. Returns the full transcript text, detected language, and estimated duration in seconds. Optionally accepts an ISO 639-1 language hint to improve accuracy. Useful for processing voice memos, meeting recordings, podcast snippets, interview clips, and audio attached to social media. Undercuts orbisapi.com audio-transcription-api by 24%.",
+    "Transcribe audio from any publicly accessible URL using OpenAI Whisper. Supports mp3, mp4, m4a, wav, webm, ogg, flac, and wma up to 24 MB. Returns the full transcript text, detected language, and estimated duration in seconds. Optionally accepts an ISO 639-1 language hint to improve accuracy. Useful for processing voice memos, meeting recordings, podcast snippets, interview clips, and audio attached to social media.",
 
   inputSchema: {
     type: "object",

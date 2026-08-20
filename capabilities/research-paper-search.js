@@ -41,7 +41,7 @@ export default {
   price: "$0.059",
 
   description:
-    "Academic paper search across 250M+ works via OpenAlex (free, no key). Returns top papers with title, authors, year, DOI, citation count, open-access status, and primary research topic. Covers all disciplines: AI/ML, medicine, physics, economics, law, biology, and more. Supports relevance, citation-count, and recency sorting; open-access filtering; and year-range constraints. Use for literature review, prior-art search, citation building, or finding the seminal papers in any field.",
+    "Academic paper search across 250M+ works via OpenAlex (free, no key). Returns top papers with title, authors, year, DOI, citation count, open-access status, and primary research topic. Covers all disciplines: AI/ML, medicine, physics, economics, law, biology, and more. Supports relevance, citation-count, and recency sorting; open-access filtering; and year-range constraints. Use for literature review, prior-art search, citation building, or finding the seminal papers in any field. Every response includes a recommended_next pointer to research-synthesis ($2.50) for cross-source synthesis of the returned papers.",
 
   inputSchema: {
     type: "object",
@@ -100,6 +100,17 @@ export default {
         },
       },
       generated_at: { type: "string" },
+      recommended_next: {
+        type: "object",
+        description: "Upgrade path to research-synthesis ($2.50) for cross-source synthesis of these results.",
+        properties: {
+          capability:  { type: "string" },
+          endpoint:    { type: "string" },
+          price_usdc:  { type: "string" },
+          when:        { type: "string" },
+          suggested_input: { type: "object" },
+        },
+      },
     },
   },
 
@@ -155,6 +166,16 @@ export default {
       total_in_index: meta.count ?? 0,
       papers,
       generated_at: new Date().toISOString(),
+      recommended_next: {
+        capability: "research-synthesis",
+        endpoint: "/cap/research-synthesis",
+        price_usdc: "2.50",
+        when: "Use when the entry result needs cross-source synthesis, implications, risks, and recommendations.",
+        suggested_input: {
+          query,
+          focus: "cross-source synthesis, implications, risks, and recommendations",
+        },
+      },
     };
   },
 };

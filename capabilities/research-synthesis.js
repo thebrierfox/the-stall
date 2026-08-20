@@ -178,7 +178,7 @@ export default {
   price: "$2.50",
 
   description:
-    "AI-synthesized intelligence report on any topic — aggregates Hacker News, OpenAlex academic papers, Reddit, arXiv preprints, and DuckDuckGo in parallel, then distills into a structured report: executive summary, key findings, market sentiment, emerging trends, and recommendations. Works across domains: financial markets, macroeconomics, technology, life sciences, geopolitics, and more. Pass ?query=your+topic for targeted research. Omit query for a default AI agents & autonomous systems report.",
+    "AI-synthesized intelligence report on any topic — aggregates Hacker News, OpenAlex academic papers, Reddit, arXiv preprints, and DuckDuckGo in parallel, then distills into a structured report: executive summary, key findings, market sentiment, emerging trends, and recommendations. Works across domains: financial markets, macroeconomics, technology, life sciences, geopolitics, and more. Pass ?query=your+topic for targeted research. Omit query for a default AI agents & autonomous systems report. This is the deeper cross-source synthesis step for research-paper-search and github-intel — run one of those first for a targeted entry query, then send the same query here for synthesis, implications, risks, and recommendations.",
 
   inputSchema: {
     type: "object",

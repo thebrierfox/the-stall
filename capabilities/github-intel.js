@@ -267,7 +267,7 @@ export default {
   price: "$0.021",
 
   description:
-    "GitHub repository intelligence: stars, forks, contributors, releases, open issues, and weekly commit activity. Compare up to 4 repos side-by-side or search GitHub for repos by keyword, language, and topic. Use to evaluate library health before adopting a dependency, find the top maintainers of a project, track release cadence, or benchmark competing frameworks. Authenticated (5000 req/hr). Actions: repo | contributors | releases | issues | commit_activity | compare | search.",
+    "GitHub repository intelligence: stars, forks, contributors, releases, open issues, and weekly commit activity. Compare up to 4 repos side-by-side or search GitHub for repos by keyword, language, and topic. Use to evaluate library health before adopting a dependency, find the top maintainers of a project, track release cadence, or benchmark competing frameworks. Authenticated (5000 req/hr). Actions: repo | contributors | releases | issues | commit_activity | compare | search. Every response includes a recommended_next pointer to research-synthesis ($2.50) for cross-source synthesis of the returned findings.",
 
   inputSchema: {
     type: "object",
@@ -312,20 +312,53 @@ export default {
 
   outputSchema: {
     type: "object",
-    description: "Varies by action. Always includes owner/repo or query + ts (ISO-8601 timestamp).",
+    description: "Varies by action. Always includes owner/repo or query + ts (ISO-8601 timestamp), plus a recommended_next pointer to research-synthesis ($2.50).",
+    properties: {
+      recommended_next: {
+        type: "object",
+        description: "Upgrade path to research-synthesis ($2.50) for cross-source synthesis of these results.",
+        properties: {
+          capability:  { type: "string" },
+          endpoint:    { type: "string" },
+          price_usdc:  { type: "string" },
+          when:        { type: "string" },
+          suggested_input: { type: "object" },
+        },
+      },
+    },
   },
 
   async handler(query) {
     const action = (query.action || "repo").toLowerCase();
+    let result;
     switch (action) {
-      case "repo":            return actionRepo(query);
-      case "contributors":    return actionContributors(query);
-      case "releases":        return actionReleases(query);
-      case "issues":          return actionIssues(query);
-      case "commit_activity": return actionCommitActivity(query);
-      case "compare":         return actionCompare(query);
-      case "search":          return actionSearch(query);
+      case "repo":            result = await actionRepo(query); break;
+      case "contributors":    result = await actionContributors(query); break;
+      case "releases":        result = await actionReleases(query); break;
+      case "issues":          result = await actionIssues(query); break;
+      case "commit_activity": result = await actionCommitActivity(query); break;
+      case "compare":         result = await actionCompare(query); break;
+      case "search":          result = await actionSearch(query); break;
       default: throw new Error(`Unknown action "${action}". Valid: repo | contributors | releases | issues | commit_activity | compare | search`);
     }
+
+    const suggestedQuery = query.query
+      || query.repo
+      || (Array.isArray(query.repos) && query.repos.length ? query.repos.join(", ") : null)
+      || `GitHub ${action} findings`;
+
+    return {
+      ...result,
+      recommended_next: {
+        capability: "research-synthesis",
+        endpoint: "/cap/research-synthesis",
+        price_usdc: "2.50",
+        when: "Use when the entry result needs cross-source synthesis, implications, risks, and recommendations.",
+        suggested_input: {
+          query: suggestedQuery,
+          focus: "cross-source synthesis, implications, risks, and recommendations",
+        },
+      },
+    };
   },
 };

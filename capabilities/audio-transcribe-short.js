@@ -41,6 +41,5 @@ export default {
     minDurationS: MIN_DURATION_S,
     maxDurationS: MAX_DURATION_S,
     tierLabel: "short (0-5min)",
-    defaultUrl: "https://archive.org/download/testmp3testfile/mpthreetest.mp3",
   }),
 };

@@ -1,272 +1,346 @@
 // balance-sheet.js
 //
-// Quarterly or annual balance sheet history for any US public company.
-// Returns: cash & equivalents, short-term investments, total assets, total debt,
-// net debt, total liabilities, stockholders' equity, book value (common equity),
-// retained earnings, goodwill & intangibles, tangible book value, shares outstanding,
-// current assets, current liabilities, and working capital.
-//
-// Fills the gap between income-statements (P&L + cash flow) and the equity
-// research toolkit: agents building DCF models need total debt and net cash to
-// compute Enterprise Value (EV = market cap + net debt). Balance sheet health
-// (leverage ratios, working capital, book value) is also the primary input for
-// distress screening, credit analysis, and bank/insurance equity research.
-//
-// Upstream: Yahoo Finance fundamentals timeseries v1 (free, crumb-auth, no API key).
-// Same data source and quality as income-statements. Priced at $0.015.
+// Quarterly or annual balance-sheet history from the SEC's official EDGAR
+// Companyfacts API. The API is public, keyless, and designed for automated
+// access. Values come from issuer-filed XBRL facts, so some fields may be null
+// when a filer uses a different taxonomy extension or does not disclose them.
 
-const UA           = "Mozilla/5.0 (compatible; the-stall/4.10; +https://intuitek.ai)";
-const YF_CRUMB_SRC = "https://fc.yahoo.com";
-const YF_CRUMB_URL = "https://query2.finance.yahoo.com/v1/test/getcrumb";
-const YF_TS_URL    = "https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries";
-const TMO          = 14_000;
-const CRUMB_TTL    = 30 * 60 * 1000;
+const UA = "the-stall/4.68 balance-sheet (kyle@intuitek.ai)";
+const TICKERS_URL = "https://www.sec.gov/files/company_tickers.json";
+const EFTS_URL = "https://efts.sec.gov/LATEST/search-index";
+const COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{CIK}.json";
+const TIMEOUT_MS = 14_000;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const COMPANYFACTS_TTL_MS = 5 * 60 * 1000;
 
-let _crumbCache = null;
+let tickerCache = null;
+const companyfactsCache = new Map();
+const companyResolutionCache = new Map();
 
-async function refreshCrumb() {
-  const seedResp = await fetch(YF_CRUMB_SRC, {
-    headers: { "User-Agent": UA },
-    redirect: "follow",
-    signal: AbortSignal.timeout(TMO),
-  });
-  const setCookies = seedResp.headers.getSetCookie?.() ?? [];
-  const cookies = setCookies.map(c => c.split(";")[0]).join("; ");
-
-  const crumbResp = await fetch(YF_CRUMB_URL, {
-    headers: { "User-Agent": UA, "Cookie": cookies },
-    signal: AbortSignal.timeout(TMO),
-  });
-  if (!crumbResp.ok) throw new Error(`crumb fetch failed: ${crumbResp.status}`);
-  const crumb = (await crumbResp.text()).trim();
-  if (!crumb) throw new Error("empty crumb");
-
-  _crumbCache = { crumb, cookies, ts: Date.now() };
-  return _crumbCache;
+function upstreamError(message) {
+  const error = new Error(message);
+  error.status = 503;
+  return error;
 }
 
-async function getCrumb() {
-  if (_crumbCache && (Date.now() - _crumbCache.ts) < CRUMB_TTL) return _crumbCache;
-  return refreshCrumb();
+function badRequest(message) {
+  const error = new Error(message);
+  error.status = 400;
+  return error;
 }
 
-const QUARTERLY_TYPES = [
-  "quarterlyCashAndCashEquivalents",
-  "quarterlyShortTermInvestments",
-  "quarterlyCurrentAssets",
-  "quarterlyTotalAssets",
-  "quarterlyCurrentLiabilities",
-  "quarterlyTotalDebt",
-  "quarterlyNetDebt",
-  "quarterlyTotalLiabilitiesNetMinorityInterest",
-  "quarterlyStockholdersEquity",
-  "quarterlyCommonStockEquity",
-  "quarterlyRetainedEarnings",
-  "quarterlyGoodwillAndOtherIntangibleAssets",
-  "quarterlyShareIssued",
-];
-
-const ANNUAL_TYPES = QUARTERLY_TYPES.map(t => t.replace("quarterly", "annual"));
-
-// Maps the YF suffix (after "quarterly"/"annual") → output field name
-const FIELD_MAP = {
-  CashAndCashEquivalents:              "cash",
-  ShortTermInvestments:                "short_term_investments",
-  CurrentAssets:                       "current_assets",
-  TotalAssets:                         "total_assets",
-  CurrentLiabilities:                  "current_liabilities",
-  TotalDebt:                           "total_debt",
-  NetDebt:                             "net_debt",
-  TotalLiabilitiesNetMinorityInterest: "total_liabilities",
-  StockholdersEquity:                  "stockholders_equity",
-  CommonStockEquity:                   "book_value",
-  RetainedEarnings:                    "retained_earnings",
-  GoodwillAndOtherIntangibleAssets:    "goodwill_intangibles",
-  ShareIssued:                         "shares_outstanding",
-};
-
-async function fetchTimeSeries(ticker, period, retry = true) {
-  const { crumb, cookies } = await getCrumb();
-  const types = period === "annual" ? ANNUAL_TYPES : QUARTERLY_TYPES;
-  const now   = Math.floor(Date.now() / 1000);
-  const past  = now - (period === "annual" ? 5 : 2) * 365 * 24 * 3600;
-
-  const url = `${YF_TS_URL}/${encodeURIComponent(ticker)}?type=${types.join(",")}&period1=${past}&period2=${now}&crumb=${encodeURIComponent(crumb)}`;
-  const resp = await fetch(url, {
-    headers: { "User-Agent": UA, "Cookie": cookies, "Accept": "application/json" },
-    signal: AbortSignal.timeout(TMO),
+async function fetchJson(url, label, attempt = 0) {
+  const response = await fetch(url, {
+    headers: { "User-Agent": UA, Accept: "application/json" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-
-  if (resp.status === 401 && retry) {
-    _crumbCache = null;
-    return fetchTimeSeries(ticker, period, false);
+  if ([429, 503].includes(response.status) && attempt < 2) {
+    const retryHeader = Number.parseInt(response.headers.get("retry-after") ?? "", 10);
+    const retryMs = Math.min(5_000, Number.isFinite(retryHeader) ? retryHeader * 1000 : 1_000 * (2 ** attempt));
+    await new Promise((resolve) => setTimeout(resolve, retryMs));
+    return fetchJson(url, label, attempt + 1);
   }
-  if (!resp.ok) throw new Error(`Yahoo Finance timeseries returned ${resp.status}`);
-  return resp.json();
+  if (!response.ok) throw upstreamError(`${label} returned HTTP ${response.status}`);
+  try {
+    return await response.json();
+  } catch {
+    throw upstreamError(`${label} returned invalid JSON`);
+  }
 }
 
-function pivot(results, period, limit) {
-  const prefix = period === "annual" ? "annual" : "quarterly";
-  const dateMap = {};
+async function getTickerMap() {
+  if (tickerCache && Date.now() - tickerCache.loadedAt < CACHE_TTL_MS) {
+    return tickerCache.map;
+  }
+  const raw = await fetchJson(TICKERS_URL, "SEC ticker map");
+  const map = {};
+  for (const item of Object.values(raw)) {
+    if (!item?.ticker || item?.cik_str == null) continue;
+    map[String(item.ticker).toUpperCase()] = {
+      cik: String(item.cik_str).padStart(10, "0"),
+      title: item.title ?? null,
+    };
+  }
+  tickerCache = { loadedAt: Date.now(), map };
+  return map;
+}
 
-  for (const series of results) {
-    const key = Object.keys(series).find(k => k.startsWith(prefix) && Array.isArray(series[k]));
-    if (!key) continue;
-
-    const suffix    = key.slice(prefix.length); // e.g. "TotalDebt"
-    const fieldName = FIELD_MAP[suffix];
-    if (!fieldName) continue;
-
-    for (const item of series[key]) {
-      const date = item.asOfDate;
-      if (!dateMap[date]) dateMap[date] = { period_end: date };
-      const raw = item.reportedValue?.raw ?? null;
-      dateMap[date][fieldName] = raw !== undefined ? raw : null;
+export function companyFromEftsHits(symbol, hits) {
+  const marker = `(${symbol})`;
+  for (const hit of Array.isArray(hits) ? hits : []) {
+    const source = hit?._source ?? {};
+    for (const displayName of source.display_names ?? []) {
+      if (!String(displayName).toUpperCase().includes(marker)) continue;
+      const cikMatch = String(displayName).match(/\(CIK\s+(\d{1,10})\)/i);
+      const cik = cikMatch?.[1] ?? source.ciks?.[0];
+      if (!cik) continue;
+      return {
+        cik: String(cik).padStart(10, "0"),
+        title: String(displayName).split(marker)[0].trim() || null,
+      };
     }
   }
+  return null;
+}
 
-  // Compute derived fields after pivoting
-  for (const row of Object.values(dateMap)) {
-    // working_capital = current_assets - current_liabilities
-    if (row.current_assets != null && row.current_liabilities != null) {
-      row.working_capital = row.current_assets - row.current_liabilities;
-    } else {
-      row.working_capital = null;
+async function resolveCompany(symbol) {
+  if (companyResolutionCache.has(symbol)) return companyResolutionCache.get(symbol);
+  try {
+    const tickerMap = await getTickerMap();
+    if (tickerMap[symbol]) {
+      companyResolutionCache.set(symbol, tickerMap[symbol]);
+      return tickerMap[symbol];
     }
-    // tangible_book_value = book_value - goodwill & intangibles
-    if (row.book_value != null && row.goodwill_intangibles != null) {
-      row.tangible_book_value = row.book_value - row.goodwill_intangibles;
-    } else {
-      row.tangible_book_value = null;
-    }
-    // net_cash (positive = cash > debt; negative = levered) derived from net_debt
-    if (row.net_debt != null) {
-      row.net_cash = -row.net_debt;
-    } else if (row.cash != null && row.total_debt != null) {
-      row.net_cash = (row.cash + (row.short_term_investments ?? 0)) - row.total_debt;
-    } else {
-      row.net_cash = null;
-    }
+  } catch (error) {
+    if (error?.status !== 503) throw error;
   }
 
-  return Object.values(dateMap)
-    .sort((a, b) => b.period_end.localeCompare(a.period_end))
-    .slice(0, limit);
+  const params = new URLSearchParams({
+    q: `"${symbol}"`,
+    forms: "10-K,10-Q,20-F,40-F",
+    from: "0",
+    size: "10",
+  });
+  const data = await fetchJson(`${EFTS_URL}?${params}`, `SEC ticker search for ${symbol}`);
+  const company = companyFromEftsHits(symbol, data?.hits?.hits);
+  if (!company) throw badRequest(`Ticker not found in SEC filings: ${symbol}`);
+  companyResolutionCache.set(symbol, company);
+  return company;
+}
+
+async function getCompanyFacts(symbol, cik) {
+  const cached = companyfactsCache.get(cik);
+  if (cached && Date.now() - cached.loadedAt < COMPANYFACTS_TTL_MS) return cached.data;
+  const data = await fetchJson(
+    COMPANYFACTS_URL.replace("{CIK}", cik),
+    `SEC Companyfacts for ${symbol}`,
+  );
+  companyfactsCache.set(cik, { loadedAt: Date.now(), data });
+  return data;
+}
+
+function allowedForms(period) {
+  return period === "annual"
+    ? new Set(["10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"])
+    : new Set(["10-Q", "10-Q/A", "10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"]);
+}
+
+function valuesForTags(companyfacts, namespace, tags, unit, period) {
+  const result = new Map();
+  const forms = allowedForms(period);
+  const namespaceFacts = companyfacts?.facts?.[namespace] ?? {};
+
+  for (const tag of tags) {
+    const fact = namespaceFacts[tag];
+    if (!fact?.units) continue;
+    const rows = fact.units[unit] ?? [];
+    const latestForEnd = new Map();
+    for (const row of rows) {
+      if (!forms.has(row?.form) || !row?.end || !Number.isFinite(row?.val)) continue;
+      const existing = latestForEnd.get(row.end);
+      if (!existing || String(row.filed ?? "") > String(existing.filed ?? "")) {
+        latestForEnd.set(row.end, row);
+      }
+    }
+    for (const [end, row] of latestForEnd) {
+      if (!result.has(end)) result.set(end, row);
+    }
+  }
+  return result;
+}
+
+function valueAt(map, end) {
+  const value = map.get(end)?.val;
+  return Number.isFinite(value) ? value : null;
+}
+
+function latestFiledAt(maps, end) {
+  const filed = Object.values(maps)
+    .map((map) => map.get(end)?.filed)
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0];
+  return filed ?? null;
+}
+
+function sumAvailable(...values) {
+  const present = values.filter(Number.isFinite);
+  return present.length ? present.reduce((total, value) => total + value, 0) : null;
+}
+
+export function periodsFromCompanyFacts(companyfacts, period = "quarterly", limit = 4) {
+  const maps = {
+    cash: valuesForTags(companyfacts, "us-gaap", [
+      "CashAndCashEquivalentsAtCarryingValue",
+      "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+    ], "USD", period),
+    shortInvestments: valuesForTags(companyfacts, "us-gaap", [
+      "ShortTermInvestments",
+      "MarketableSecuritiesCurrent",
+    ], "USD", period),
+    currentAssets: valuesForTags(companyfacts, "us-gaap", ["AssetsCurrent"], "USD", period),
+    totalAssets: valuesForTags(companyfacts, "us-gaap", ["Assets"], "USD", period),
+    currentLiabilities: valuesForTags(companyfacts, "us-gaap", ["LiabilitiesCurrent"], "USD", period),
+    debtTotal: valuesForTags(companyfacts, "us-gaap", [
+      "LongTermDebtAndFinanceLeaseObligations",
+      "LongTermDebtAndCapitalLeaseObligations",
+    ], "USD", period),
+    debtCurrent: valuesForTags(companyfacts, "us-gaap", [
+      "DebtCurrent",
+      "LongTermDebtCurrent",
+      "ShortTermBorrowings",
+    ], "USD", period),
+    debtNoncurrent: valuesForTags(companyfacts, "us-gaap", [
+      "LongTermDebtAndFinanceLeaseObligationsNoncurrent",
+      "LongTermDebtNoncurrent",
+    ], "USD", period),
+    liabilities: valuesForTags(companyfacts, "us-gaap", ["Liabilities"], "USD", period),
+    equity: valuesForTags(companyfacts, "us-gaap", [
+      "StockholdersEquity",
+      "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    ], "USD", period),
+    retainedEarnings: valuesForTags(companyfacts, "us-gaap", ["RetainedEarningsAccumulatedDeficit"], "USD", period),
+    goodwillIntangibles: valuesForTags(companyfacts, "us-gaap", ["GoodwillAndIntangibleAssetsNet"], "USD", period),
+    goodwill: valuesForTags(companyfacts, "us-gaap", ["Goodwill"], "USD", period),
+    intangibles: valuesForTags(companyfacts, "us-gaap", [
+      "FiniteLivedIntangibleAssetsNet",
+      "IndefiniteLivedIntangibleAssetsExcludingGoodwill",
+    ], "USD", period),
+    shares: valuesForTags(companyfacts, "dei", ["EntityCommonStockSharesOutstanding"], "shares", period),
+  };
+
+  const dates = [...new Set([
+    ...maps.totalAssets.keys(),
+    ...maps.currentAssets.keys(),
+    ...maps.equity.keys(),
+  ])].sort((a, b) => b.localeCompare(a));
+
+  return dates.slice(0, limit).map((end) => {
+    const cash = valueAt(maps.cash, end);
+    const shortTermInvestments = valueAt(maps.shortInvestments, end);
+    const currentAssets = valueAt(maps.currentAssets, end);
+    const currentLiabilities = valueAt(maps.currentLiabilities, end);
+    const directDebt = valueAt(maps.debtTotal, end);
+    const componentDebt = sumAvailable(valueAt(maps.debtCurrent, end), valueAt(maps.debtNoncurrent, end));
+    const totalDebt = directDebt ?? componentDebt;
+    const equity = valueAt(maps.equity, end);
+    const combinedIntangibles = valueAt(maps.goodwillIntangibles, end);
+    const goodwillIntangibles = combinedIntangibles ?? sumAvailable(
+      valueAt(maps.goodwill, end),
+      valueAt(maps.intangibles, end),
+    );
+    const netDebt = Number.isFinite(totalDebt)
+      ? totalDebt - (cash ?? 0) - (shortTermInvestments ?? 0)
+      : null;
+
+    return {
+      period_end: end,
+      filed_at: latestFiledAt(maps, end),
+      cash,
+      short_term_investments: shortTermInvestments,
+      current_assets: currentAssets,
+      total_assets: valueAt(maps.totalAssets, end),
+      current_liabilities: currentLiabilities,
+      total_debt: totalDebt,
+      net_debt: netDebt,
+      net_cash: Number.isFinite(netDebt) ? -netDebt : null,
+      total_liabilities: valueAt(maps.liabilities, end),
+      stockholders_equity: equity,
+      book_value: equity,
+      retained_earnings: valueAt(maps.retainedEarnings, end),
+      goodwill_intangibles: goodwillIntangibles,
+      tangible_book_value: Number.isFinite(equity) && Number.isFinite(goodwillIntangibles)
+        ? equity - goodwillIntangibles
+        : null,
+      working_capital: Number.isFinite(currentAssets) && Number.isFinite(currentLiabilities)
+        ? currentAssets - currentLiabilities
+        : null,
+      shares_outstanding: valueAt(maps.shares, end),
+    };
+  });
+}
+
+export function balanceSheetPollingState(periods, knownLatestPeriodEnd, now = new Date()) {
+  const latestPeriodEnd = periods[0]?.period_end ?? null;
+  return {
+    latest_period_end: latestPeriodEnd,
+    changed_since_known_period: knownLatestPeriodEnd && latestPeriodEnd
+      ? latestPeriodEnd > knownLatestPeriodEnd
+      : null,
+    recommended_poll_interval_hours: 24,
+    next_poll_after_utc: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+  };
 }
 
 export default {
-  name:  "balance-sheet",
+  name: "balance-sheet",
   price: "$0.021",
-
   description:
-    "Quarterly or annual balance sheet history for any US public stock. Returns cash & equivalents, " +
-    "short-term investments, total assets, total debt, net debt, total liabilities, stockholders' equity, " +
-    "book value, retained earnings, goodwill & intangibles, tangible book value, working capital, " +
-    "and shares outstanding. Quarterly default (up to 8 periods); annual returns up to 4 fiscal years. " +
-    "Critical for EV calculation (market cap + net debt), leverage screening, and distress analysis. " +
-    "Pairs with income-statements (P&L + cash flow) to complete the financial statement trilogy. " +
-    "Source: Yahoo Finance fundamentals timeseries (free, no API key required).",
-
+    "Quarterly or annual balance-sheet history for a US public company from issuer-filed SEC EDGAR XBRL facts. " +
+    "Returns cash, investments, assets, debt, liabilities, equity, retained earnings, tangible book value, " +
+    "working capital, and shares outstanding. Source: official SEC Companyfacts API; no API key. " +
+    "For automated monitoring, pass known_latest_period_end from the prior response and poll again after next_poll_after_utc.",
   inputSchema: {
     type: "object",
+    required: ["ticker"],
+    additionalProperties: false,
     properties: {
-      ticker: {
-        type: "string",
-        description: "US equity ticker symbol (e.g. 'AAPL', 'MSFT', 'NVDA', 'TSLA').",
-      },
+      ticker: { type: "string", description: "US-listed company ticker, such as AAPL or MSFT." },
       period: {
         type: "string",
         enum: ["quarterly", "annual"],
-        description: "Period type. Default: 'quarterly' (up to 8 recent quarters). 'annual' returns up to 4 fiscal years.",
+        description: "Defaults to quarterly. Annual uses annual filing forms only.",
       },
-      limit: {
-        type: "integer",
-        minimum: 1,
-        maximum: 8,
-        description: "Max periods to return (1–8 for quarterly; 1–4 for annual). Default: 4.",
+      limit: { type: "integer", minimum: 1, maximum: 8, description: "Periods to return; default 4." },
+      known_latest_period_end: {
+        type: "string",
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$",
+        description: "Optional prior latest_period_end. The response reports whether a newer filing period is available.",
       },
     },
-    required: [],
   },
-
   outputSchema: {
     type: "object",
     properties: {
-      ticker:      { type: "string" },
+      ticker: { type: "string" },
+      company_name: { type: ["string", "null"] },
+      cik: { type: "string" },
       period_type: { type: "string" },
-      currency:    { type: "string" },
-      periods: {
-        type: "array",
-        description: "Balance sheet snapshots, most-recent-first. All monetary values in USD.",
-        items: {
-          type: "object",
-          properties: {
-            period_end:          { type: "string", description: "Balance sheet date (YYYY-MM-DD)." },
-            cash:                { type: ["number", "null"], description: "Cash and cash equivalents (USD)." },
-            short_term_investments: { type: ["number", "null"], description: "Short-term investments / marketable securities." },
-            current_assets:      { type: ["number", "null"], description: "Total current assets." },
-            total_assets:        { type: ["number", "null"], description: "Total assets." },
-            current_liabilities: { type: ["number", "null"], description: "Total current liabilities." },
-            total_debt:          { type: ["number", "null"], description: "Total financial debt (short-term + long-term)." },
-            net_debt:            { type: ["number", "null"], description: "Net debt (total_debt - cash - short_term_investments). Positive = levered." },
-            net_cash:            { type: ["number", "null"], description: "Net cash position (-net_debt). Positive = cash > debt." },
-            total_liabilities:   { type: ["number", "null"], description: "Total liabilities including minority interest." },
-            stockholders_equity: { type: ["number", "null"], description: "Total stockholders' equity." },
-            book_value:          { type: ["number", "null"], description: "Common stockholders' equity (book value)." },
-            retained_earnings:   { type: ["number", "null"], description: "Retained earnings / accumulated deficit." },
-            goodwill_intangibles:{ type: ["number", "null"], description: "Goodwill + other intangible assets." },
-            tangible_book_value: { type: ["number", "null"], description: "book_value minus goodwill_intangibles." },
-            working_capital:     { type: ["number", "null"], description: "current_assets minus current_liabilities." },
-            shares_outstanding:  { type: ["number", "null"], description: "Shares issued / outstanding." },
-          },
-        },
-      },
+      currency: { type: "string" },
+      periods: { type: "array", items: { type: "object" } },
+      source: { type: "string" },
       retrieved_at: { type: "string" },
-      related_capabilities: {
-        type: "array",
-        description: "Companion caps for complete financial analysis.",
-        items: {
-          type: "object",
-          properties: {
-            cap:         { type: "string" },
-            description: { type: "string" },
-            price:       { type: "string" },
-          },
-        },
-      },
+      latest_period_end: { type: ["string", "null"] },
+      changed_since_known_period: { type: ["boolean", "null"] },
+      recommended_poll_interval_hours: { type: "integer" },
+      next_poll_after_utc: { type: "string" },
     },
   },
-
-  async handler({ ticker = "AAPL", period = "quarterly", limit = 4 }) {
-    const sym      = (ticker || "AAPL").trim().toUpperCase();
-    const maxLimit = Math.min(Math.max(1, limit), period === "annual" ? 4 : 8);
-
-    const data    = await fetchTimeSeries(sym, period);
-    const results = data?.timeseries?.result ?? [];
-
-    if (!results.length) {
-      throw new Error(`No ${period} balance sheet data found for ${sym}`);
+  async handler({ ticker, period = "quarterly", limit = 4, known_latest_period_end }) {
+    const symbol = String(ticker ?? "").trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) {
+      throw new Error("ticker is required and must be a valid US-listed symbol");
     }
-
-    const periods = pivot(results, period, maxLimit);
-
-    if (!periods.length) {
-      throw new Error(`No ${period} balance sheet periods found for ${sym}`);
+    if (known_latest_period_end && !/^\d{4}-\d{2}-\d{2}$/.test(known_latest_period_end)) {
+      throw new Error("known_latest_period_end must use YYYY-MM-DD format");
     }
+    const company = await resolveCompany(symbol);
+
+    const resolvedPeriod = period === "annual" ? "annual" : "quarterly";
+    const maxLimit = Math.min(Math.max(1, Number(limit) || 4), resolvedPeriod === "annual" ? 4 : 8);
+    const companyfacts = await getCompanyFacts(symbol, company.cik);
+    const periods = periodsFromCompanyFacts(companyfacts, resolvedPeriod, maxLimit);
+    if (!periods.length) throw new Error(`No SEC balance-sheet facts found for ${symbol}`);
 
     return {
-      ticker:      sym,
-      period_type: period,
-      currency:    "USD",
+      ticker: symbol,
+      company_name: companyfacts.entityName ?? company.title,
+      cik: company.cik,
+      period_type: resolvedPeriod,
+      currency: "USD",
       periods,
+      source: "SEC EDGAR Companyfacts (data.sec.gov)",
       retrieved_at: new Date().toISOString(),
-      related_capabilities: [
-        { cap: "income-statements",  description: "Full P&L + cash flow history — revenue, margins, EPS, FCF.",           price: "$0.015" },
-        { cap: "equity-fundamentals",description: "Trailing valuation ratios: P/E, EV/EBITDA, P/B, margins, ROE, FCF.",  price: "$0.020" },
-        { cap: "earnings-estimates", description: "Forward analyst EPS & revenue consensus, revision momentum.",           price: "$0.012" },
-        { cap: "peer-benchmarking",  description: "Comps table: 5 sector peers vs target on valuation/growth/margins.",   price: "$0.100" },
-        { cap: "analyst-ratings",    description: "Buy/hold/sell counts, mean recommendation score, price target range.", price: "$0.010" },
-      ],
+      ...balanceSheetPollingState(periods, known_latest_period_end),
     };
   },
 };

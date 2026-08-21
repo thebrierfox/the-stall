@@ -19,7 +19,7 @@ import { join }                from "path";
 import { tmpdir }              from "os";
 
 const execFileAsync = promisify(execFile);
-const YTDLP         = "/home/aegis/.local/bin/yt-dlp";
+const YTDLP         = process.env.YTDLP_BIN || "/home/aegis/.local/bin/yt-dlp";
 const ID_RE         = /^[a-zA-Z0-9_-]{11}$/;
 
 function extractVideoId(input) {
@@ -78,6 +78,8 @@ function parseVTT(vtt, maxSegs = 600) {
   return deduped;
 }
 
+export { extractVideoId, parseVTT };
+
 // ─── Export ──────────────────────────────────────────────────────────────────
 
 export default {
@@ -102,7 +104,7 @@ export default {
         description: "Output format. 'segments' = timestamped array + text (default). 'text' = plain string only.",
       },
     },
-    required:            [],
+    required:            ["video"],
     additionalProperties: false,
   },
 
@@ -130,7 +132,7 @@ export default {
   },
 
   async handler(query) {
-    const videoId = extractVideoId(query.video || "dQw4w9WgXcQ");
+    const videoId = extractVideoId(query?.video);
     if (!videoId) throw Object.assign(new Error("invalid YouTube URL or video ID"), { status: 400 });
 
     const fmt     = query.format || "segments";

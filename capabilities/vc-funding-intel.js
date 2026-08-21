@@ -79,6 +79,25 @@ function daysAgo(n) {
   return d.toISOString().slice(0, 10);
 }
 
+export function limitSearchHits(hits, limit) {
+  return Array.isArray(hits) ? hits.slice(0, Math.max(0, limit)) : [];
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
+  return results;
+}
+
 async function fetchFormDDetail(adsh, cik) {
   const url = buildEdgarXmlUrl(adsh, cik);
   if (!url) return {};
@@ -140,7 +159,26 @@ function extractCompanyName(src) {
 }
 
 // Company mode: search EFTS by company name, fetch XML detail for each hit
-async function searchByCompany(companyName, limit) {
+export function applyFiledAfter(filings, filedAfter) {
+  const filtered = filedAfter
+    ? filings.filter((filing) => String(filing.filing_date ?? "") > filedAfter)
+    : filings;
+  const latest = filtered
+    .map((filing) => filing.filing_date)
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0] ?? null;
+  return { filings: filtered, next_filed_after: latest ?? filedAfter ?? null };
+}
+
+export function pollingMetadata(nextFiledAfter, now = new Date()) {
+  return {
+    next_filed_after: nextFiledAfter ?? null,
+    recommended_poll_interval_hours: 6,
+    next_poll_after_utc: new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
+async function searchByCompany(companyName, limit, filedAfter) {
   const params = new URLSearchParams({
     q:     `"${companyName}"`,
     forms: "D,D/A",
@@ -154,10 +192,10 @@ async function searchByCompany(companyName, limit) {
   });
   if (!r.ok) throw new Error(`EDGAR EFTS ${r.status}`);
   const data  = await r.json();
-  const hits  = data?.hits?.hits ?? [];
+  const hits  = limitSearchHits(data?.hits?.hits, Math.min(limit, 20));
   const total = data?.hits?.total?.value ?? 0;
 
-  const filings = await Promise.all(hits.map(async h => {
+  const filings = await mapWithConcurrency(hits, 4, async h => {
     const src    = h._source ?? {};
     const adsh   = src.adsh  ?? "";
     const cik    = parseCikFromAccession(adsh);
@@ -172,20 +210,22 @@ async function searchByCompany(companyName, limit) {
       edgar_url:    buildEdgarViewUrl(adsh, cik),
       ...detail,
     };
-  }));
+  });
 
+  const incremental = applyFiledAfter(filings, filedAfter);
   return {
     query:          companyName,
     total_filings:  total,
-    returned:       filings.length,
-    filings,
+    returned:       incremental.filings.length,
+    filings:        incremental.filings,
+    ...pollingMetadata(incremental.next_filed_after),
     note: "Form D required within 15 days of first sale. Matches by company name — refine query if too broad.",
     source: "SEC EDGAR EFTS + Form D XML (efts.sec.gov)",
   };
 }
 
 // Recent mode: market-wide Form D feed, fetch XML detail in parallel for all results
-async function recentFilings(days, minAmountMillions, limit) {
+async function recentFilings(days, minAmountMillions, limit, filedAfter) {
   const capped = Math.min(days, 90);
   const params = new URLSearchParams({
     forms:     "D",
@@ -202,11 +242,11 @@ async function recentFilings(days, minAmountMillions, limit) {
   });
   if (!r.ok) throw new Error(`EDGAR EFTS ${r.status}`);
   const data  = await r.json();
-  const hits  = data?.hits?.hits ?? [];
+  const hits  = limitSearchHits(data?.hits?.hits, Math.min(limit, 50));
   const total = data?.hits?.total?.value ?? 0;
 
   // Fetch XML in parallel — parallel calls stay within XML_TIMEOUT each
-  const filings = await Promise.all(hits.map(async h => {
+  const filings = await mapWithConcurrency(hits, 4, async h => {
     const src    = h._source ?? {};
     const adsh   = src.adsh  ?? "";
     const cik    = parseCikFromAccession(adsh);
@@ -220,7 +260,7 @@ async function recentFilings(days, minAmountMillions, limit) {
       edgar_url:         buildEdgarViewUrl(adsh, cik),
       ...detail,
     };
-  }));
+  });
 
   // Apply minimum amount filter post-fetch
   const minUsd = minAmountMillions * 1_000_000;
@@ -228,12 +268,14 @@ async function recentFilings(days, minAmountMillions, limit) {
     ? filings.filter(f => f.total_amount_sold_usd == null || f.total_amount_sold_usd >= minUsd)
     : filings;
 
+  const incremental = applyFiledAfter(filtered, filedAfter);
   return {
     days_searched:              capped,
     total_form_d_in_edgar:      total,
-    returned:                   filtered.length,
+    returned:                   incremental.filings.length,
     min_amount_filter_millions: minAmountMillions > 0 ? minAmountMillions : null,
-    filings:                    filtered,
+    filings:                    incremental.filings,
+    ...pollingMetadata(incremental.next_filed_after),
     note: "Form D must be filed within 15 days of first securities sale. Includes VC rounds, PE deals, hedge funds, real estate syndicates. Amendments (D/A) not included unless specifically searched.",
     source: "SEC EDGAR EFTS full-text search (efts.sec.gov)",
   };
@@ -244,18 +286,15 @@ export default {
   price: "$0.021",
 
   description:
-    "Private fundraising round tracker via SEC Form D EDGAR filings. " +
-    "Regulation D offerings (Rule 506(b)/506(c)/504) must be reported within 15 days of first sale " +
-    "— a near-real-time window into VC rounds, PE buyouts, startup raises, hedge fund raises, " +
-    "and real estate syndicates. " +
-    "Mode 'company' (company_name): all Form D filings for that company with amount raised, " +
-    "industry group, exemption type (506b/506c/504), investor count, and state. " +
-    "Mode 'recent': market-wide feed of new Reg D offerings in the last N days (max 90), " +
-    "filterable by minimum raise amount in millions. " +
-    "Free SEC government data, no API key. $0.015/call.",
+    "Track private fundraising via official SEC Form D filings, normally filed within 15 days of first sale. " +
+    "Find VC rounds, PE buyouts, startup raises, hedge funds, and real-estate syndications. " +
+    "Use company_name for issuer history or mode=recent for a market feed; filter by days and min_amount_millions. " +
+    "Reuse next_filed_after and poll after next_poll_after_utc for incremental automation. " +
+    "Returns amount raised, industry, exemption, investor count, state, and filing link. No API key. $0.021/call.",
 
   inputSchema: {
     type:       "object",
+    additionalProperties: false,
     properties: {
       company_name: {
         type:        "string",
@@ -283,6 +322,11 @@ export default {
         minimum:     1,
         maximum:     50,
       },
+      filed_after: {
+        type:        "string",
+        pattern:     "^\\d{4}-\\d{2}-\\d{2}$",
+        description: "Optional incremental cursor. Return only filings after this YYYY-MM-DD date; reuse next_filed_after on the next poll.",
+      },
     },
   },
 
@@ -294,20 +338,26 @@ export default {
       total_form_d_in_edgar:     { type: "integer" },
       returned:                  { type: "integer" },
       days_searched:             { type: "integer" },
-      min_amount_filter_millions: { type: "number" },
+      min_amount_filter_millions: { type: ["number", "null"] },
+      next_filed_after:          { type: ["string", "null"] },
+      recommended_poll_interval_hours: { type: "integer" },
+      next_poll_after_utc:       { type: "string" },
       note:                      { type: "string" },
       source:                    { type: "string" },
     },
   },
 
-  async handler({ company_name, mode, days = 14, min_amount_millions = 0, limit = 20 }) {
+  async handler({ company_name, mode, days = 14, min_amount_millions = 0, limit = 20, filed_after }) {
+    if (filed_after && !/^\d{4}-\d{2}-\d{2}$/.test(filed_after)) {
+      throw new Error("filed_after must use YYYY-MM-DD format");
+    }
     const resolvedMode = mode ?? (company_name ? "company" : "recent");
 
     if (resolvedMode === "company") {
       if (!company_name) throw new Error("Provide 'company_name' for company mode, or use mode='recent'.");
-      return searchByCompany(company_name, Math.min(limit, 20));
+      return searchByCompany(company_name, Math.min(limit, 20), filed_after);
     }
 
-    return recentFilings(days, min_amount_millions > 0 ? min_amount_millions : 0, Math.min(limit, 50));
+    return recentFilings(days, min_amount_millions > 0 ? min_amount_millions : 0, Math.min(limit, 50), filed_after);
   },
 };

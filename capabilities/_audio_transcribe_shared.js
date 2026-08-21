@@ -34,6 +34,48 @@ export const ALLOWED_EXTS = new Set([
   "mp3", "mp4", "mpeg", "mpga", "m4a", "wav", "webm", "ogg", "flac", "wma",
 ]);
 
+export function isPrivateIp(address) {
+  const normalized = String(address ?? "").toLowerCase().split("%")[0];
+  if (!normalized) return true;
+  if (normalized === "::" || normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd") || /^fe[89ab]/.test(normalized)) return true;
+  if (normalized.startsWith("::ffff:")) return isPrivateIp(normalized.slice(7));
+  if (!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(normalized)) return false;
+  const octets = normalized.split(".").map(Number);
+  if (octets.some((part) => part < 0 || part > 255)) return true;
+  const [a, b] = octets;
+  return a === 0 || a === 10 || a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224;
+}
+
+export async function assertPublicHttpUrl(value) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`Invalid URL: ${value}`);
+  }
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("url must use http or https");
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    throw new Error("url must resolve to a public network address");
+  }
+  const { isIP } = await import("node:net");
+  const { lookup } = await import("node:dns/promises");
+  const addresses = isIP(hostname)
+    ? [{ address: hostname }]
+    : await lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some((item) => isPrivateIp(item.address))) {
+    throw new Error("url must resolve only to public network addresses");
+  }
+  return parsed;
+}
+
 export function mimeFromUrl(url) {
   try {
     const ext = new URL(url).pathname.split(".").pop()?.toLowerCase();
@@ -95,14 +137,23 @@ export async function probeDurationSeconds(buffer) {
 }
 
 export async function fetchAudio(url) {
-  const resp = await fetch(url, {
-    headers: {
-      "User-Agent": "the-stall/4.49 (+https://intuitek.ai)",
-      Accept: "audio/*, application/octet-stream",
-    },
-    signal: AbortSignal.timeout(FETCH_MS),
-    redirect: "follow",
-  });
+  let current = await assertPublicHttpUrl(url);
+  let resp;
+  for (let redirects = 0; redirects <= 5; redirects += 1) {
+    resp = await fetch(current, {
+      headers: {
+        "User-Agent": "the-stall/4.49 (+https://intuitek.ai)",
+        Accept: "audio/*, video/*, application/octet-stream",
+      },
+      signal: AbortSignal.timeout(FETCH_MS),
+      redirect: "manual",
+    });
+    if (![301, 302, 303, 307, 308].includes(resp.status)) break;
+    const location = resp.headers.get("location");
+    if (!location) throw new Error(`Audio redirect ${resp.status} omitted Location`);
+    if (redirects === 5) throw new Error("Audio URL exceeded 5 redirects");
+    current = await assertPublicHttpUrl(new URL(location, current).toString());
+  }
   if (!resp.ok) throw new Error(`Audio fetch HTTP ${resp.status} from ${url}`);
 
   const contentLen = parseInt(resp.headers.get("content-length") || "0", 10);
@@ -162,19 +213,12 @@ export async function transcribe(buffer, url, language) {
 // the exact "unbounded obligation for a fixed price" risk Directive 103
 // flagged, so it's closed the same way for the tier boundary as it was for
 // the original ceiling.
-export function makeAudioTranscribeHandler({ minDurationS, maxDurationS, tierLabel, defaultUrl }) {
+export function makeAudioTranscribeHandler({ minDurationS, maxDurationS, tierLabel }) {
   return async function handler(query) {
-    const { url = defaultUrl, language } = query;
+    const { url, language, source_rights_confirmed } = query;
     if (!url) throw new Error("url is required for this route.");
-
-    let parsed;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new Error(`Invalid URL: ${url}`);
-    }
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      throw new Error("url must use http or https");
+    if (source_rights_confirmed !== true) {
+      throw new Error("source_rights_confirmed must be true: submit only audio you own or are authorized to process.");
     }
 
     const buffer = await fetchAudio(url);
@@ -233,7 +277,7 @@ export const OUTPUT_SCHEMA = {
 export function inputSchema(extraUrlNote) {
   return {
     type: "object",
-    required: [],
+    required: ["url", "source_rights_confirmed"],
     additionalProperties: false,
     properties: {
       url: {
@@ -246,6 +290,12 @@ export function inputSchema(extraUrlNote) {
         type: "string",
         description:
           "Optional ISO 639-1 language code hint (e.g. 'en', 'es', 'fr', 'de', 'ja'). Improves accuracy when the audio language is known. Omit to auto-detect.",
+      },
+      source_rights_confirmed: {
+        type: "boolean",
+        const: true,
+        description:
+          "Required confirmation that the caller owns the audio or is authorized to have it transcribed.",
       },
     },
   };

@@ -43,6 +43,5 @@ export default {
     minDurationS: MIN_DURATION_S,
     maxDurationS: MAX_DURATION_S,
     tierLabel: "medium (5-15min)",
-    defaultUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
   }),
 };

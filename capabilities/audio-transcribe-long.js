@@ -35,6 +35,5 @@ export default {
     minDurationS: MIN_DURATION_S,
     maxDurationS: MAX_DURATION_S,
     tierLabel: "long (15-30min)",
-    defaultUrl: "https://archive.org/download/windinwillowsdr_2207_librivox/windwillowsdr_01_grahame_64kb.mp3",
   }),
 };

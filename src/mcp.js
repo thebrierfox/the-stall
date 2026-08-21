@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
+import { runWithAttribution } from "./attribution.js";
 import {
   createMcpPaymentController,
   getMcpPaymentMode,
@@ -128,7 +129,10 @@ export function makeSSEHandlers(capabilities) {
     const session = sseSessions.get(String(sessionId));
     if (!session) return res.status(404).json({ error: "Unknown session" });
     try {
-      await session.transport.handlePostMessage(req, res, req.body);
+      await runWithAttribution(
+        req._observationContext,
+        () => session.transport.handlePostMessage(req, res, req.body),
+      );
     } catch (err) {
       console.error("[SSE] message error:", err);
       if (!res.headersSent) res.status(500).end("Message handling failed");
@@ -168,7 +172,10 @@ export function makeMcpHandler(capabilities) {
       server = buildServer(runtime);
       transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       await server.connect(transport);
-      await transport.handleRequest(req, res, req.body);
+      await runWithAttribution(
+        req._observationContext,
+        () => transport.handleRequest(req, res, req.body),
+      );
       res.on("close", () => {
         Promise.resolve(transport.close()).catch(() => {});
         Promise.resolve(server.close()).catch(() => {});

@@ -7,15 +7,19 @@
 import { appendFileSync, mkdirSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash, randomUUID } from "node:crypto";
 import { createPaymentWrapper, x402ResourceServer } from "@x402/mcp";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { getAuthHeaders } from "@coinbase/cdp-sdk/auth";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
+import { currentAttribution, observationFields } from "./attribution.js";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const LOG_DIR = join(__dir, "..", "logs");
 const MCP_PAYMENT_LOG = join(LOG_DIR, "mcp_payments.jsonl");
+const paymentCallStorage = new AsyncLocalStorage();
 mkdirSync(LOG_DIR, { recursive: true });
 
 const VALID_MODES = new Set(["off", "canary", "all"]);
@@ -125,14 +129,72 @@ function extractTransaction(settlement) {
 
 function writeEvent(event, details = {}) {
   try {
-    appendFileSync(MCP_PAYMENT_LOG, JSON.stringify({
+    const context = paymentCallStorage.getStore() || {};
+    const record = {
       ts: new Date().toISOString(),
       event,
+      ...context,
       ...details,
-    }) + "\n");
+    };
+    if (context.classification === "NON_DEMAND_TEST") {
+      record.classification = "NON_DEMAND_TEST";
+      record.demand_qualified = false;
+    }
+    appendFileSync(MCP_PAYMENT_LOG, JSON.stringify(record) + "\n");
   } catch {
     // Metering telemetry must never crash a tool call.
   }
+}
+
+function mcpCorrelationKey(tool, attribution) {
+  return "mcpcorr_" + createHash("sha256")
+    .update([
+      tool,
+      attribution?.candidate_id || "UNKNOWN",
+      attribution?.channel_id || "UNKNOWN",
+      attribution?.placement_id || "UNKNOWN",
+      attribution?.operator_signal || "UNKNOWN",
+    ].join("|"))
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function recentChallenge(tool, correlationKey) {
+  const cutoff = Date.now() - (15 * 60 * 1000);
+  const rows = readRows();
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index];
+    if (row.event !== "challenge" || row.tool !== tool) continue;
+    if (row.correlation_key !== correlationKey || !row.challenge_id) continue;
+    const timestamp = Date.parse(row.ts || "");
+    if (Number.isFinite(timestamp) && timestamp >= cutoff) {
+      return row.challenge_id;
+    }
+  }
+  return null;
+}
+
+function buildPaymentCallContext(tool, paymentPayload) {
+  const attribution = currentAttribution();
+  const correlationKey = mcpCorrelationKey(tool, attribution);
+  const priorChallenge = paymentPayload ? recentChallenge(tool, correlationKey) : null;
+  const challengeId = priorChallenge || `mcpch_${randomUUID()}`;
+  return {
+    ...observationFields(attribution),
+    request_id: attribution?.request_id || `mcpreq_${randomUUID()}`,
+    challenge_id: challengeId,
+    correlation_key: correlationKey,
+    challenge_correlation_method: priorChallenge
+      ? "recent_challenge_same_attribution_and_operator_signal"
+      : "new_request_context",
+    route: `mcp://tool/${tool}`,
+    classification: attribution?.is_test_probe
+      ? "NON_DEMAND_TEST"
+      : paymentPayload
+        ? "PAYMENT_PRESENT_UNVERIFIED"
+        : "UNSETTLED_CHALLENGE",
+    demand_qualified: false,
+  };
 }
 
 function readRows() {
@@ -292,6 +354,7 @@ export async function createMcpPaymentController(capabilities) {
             network,
             payer: extractPayer(paymentPayload),
             mode,
+            classification: "PAYMENT_VERIFIED",
           });
           return true;
         },
@@ -304,6 +367,7 @@ export async function createMcpPaymentController(capabilities) {
             payer: extractPayer(paymentPayload),
             mode,
             is_error: Boolean(result?.isError),
+            classification: "EXECUTED_AFTER_VERIFICATION",
           });
         },
         onAfterSettlement: async ({ settlement, paymentPayload }) => {
@@ -314,7 +378,9 @@ export async function createMcpPaymentController(capabilities) {
             network,
             payer: extractPayer(paymentPayload),
             transaction: extractTransaction(settlement),
+            settlement_id_if_any: extractTransaction(settlement),
             mode,
+            classification: "SETTLED_VERIFIED",
           });
         },
       },
@@ -332,18 +398,32 @@ export async function createMcpPaymentController(capabilities) {
       const wrapped = paid(handler);
       return async (params, extra = {}) => {
         const paymentPayload = extra?._meta?.["x402/payment"] ?? null;
-        if (!paymentPayload) {
-          writeEvent("challenge", {
-            tool: cap.name,
-            price: cap.price,
-            price_usd: priceUsd,
-            network,
-            mode,
-          });
-        }
-        try {
-          const result = await wrapped(params, extra);
-          if (paymentPayload && result?.isError) {
+        const callContext = buildPaymentCallContext(cap.name, paymentPayload);
+        return paymentCallStorage.run(callContext, async () => {
+          if (!paymentPayload) {
+            writeEvent("challenge", {
+              tool: cap.name,
+              price: cap.price,
+              price_usd: priceUsd,
+              network,
+              mode,
+            });
+          }
+          try {
+            const result = await wrapped(params, extra);
+            if (paymentPayload && result?.isError) {
+              writeEvent("rejected", {
+                tool: cap.name,
+                price: cap.price,
+                price_usd: priceUsd,
+                network,
+                payer: extractPayer(paymentPayload),
+                mode,
+                classification: "PAYMENT_REJECTED",
+              });
+            }
+            return result;
+          } catch (error) {
             writeEvent("rejected", {
               tool: cap.name,
               price: cap.price,
@@ -351,21 +431,12 @@ export async function createMcpPaymentController(capabilities) {
               network,
               payer: extractPayer(paymentPayload),
               mode,
+              classification: "PAYMENT_REJECTED",
+              error: String(error?.message || error).slice(0, 240),
             });
+            throw error;
           }
-          return result;
-        } catch (error) {
-          writeEvent("rejected", {
-            tool: cap.name,
-            price: cap.price,
-            price_usd: priceUsd,
-            network,
-            payer: extractPayer(paymentPayload),
-            mode,
-            error: String(error?.message || error).slice(0, 240),
-          });
-          throw error;
-        }
+        });
       };
     },
   };

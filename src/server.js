@@ -29,6 +29,11 @@ import { exec } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadCapabilities } from "./registry.js";
+import {
+  attachObservationContext,
+  observationFields,
+  requestLogRecord,
+} from "./attribution.js";
 
 const { version: PKG_VERSION } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url)));
 import { buildPaymentMiddleware } from "./payment.js";
@@ -151,9 +156,6 @@ function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req
       } catch { /* keep null */ }
     }
 
-    // Capture raw X-Payment for null-payer entries so we can diagnose CDP schema differences.
-    const rawXPaymentCapture = (!payer && xPayment) ? String(xPayment) : null;
-
     // Intercept res.setHeader to capture the payment receipt the moment middleware writes it.
     // @x402/express v2 sets the receipt AFTER next() returns via the buffered-response pattern.
     // CDP facilitator uses "X-PAYMENT-RESPONSE"; the generic x402.org facilitator uses
@@ -197,11 +199,17 @@ function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req
         const entry = JSON.stringify({
           ts, cap: capName, price, status: statusCode,
           ip: ip || "unknown", payer, tx_hash: txHash, receipt: receiptRaw,
-          referer: req?.get("referer") || req?.get("referrer") || null,
-          user_agent: req?.get("user-agent") || null,
-          origin: req?.get("origin") || null,
+          traffic_class: req?._internalBypass ? "internal_bypass"
+            : req?.fiatPaid ? "fiat"
+            : req?._polygonRail ? "polygon"
+            : req?._solanaRail ? "solana"
+            : "x402",
+          referer: req?._observationContext?.referer || null,
+          user_agent: req?._observationContext?.user_agent || null,
+          origin: req?._observationContext?.origin || null,
           delivered_error_payload: deliveredErrorPayload,
-          ...(rawXPaymentCapture ? { _raw_xpayment_debug: rawXPaymentCapture } : {}),
+          payment_payload_present: Boolean(xPayment),
+          ...observationFields(req?._observationContext),
         });
         appendFileSync(SETTLEMENT_LOG, entry + "\n");
         // If payer still null but tx_hash known: schedule async RPC enrichment.
@@ -211,9 +219,9 @@ function logSettlement(capName, price, query, statusCode, res, ip, xPayment, req
   } catch (_) { /* never crash on log failure */ }
 }
 
-function logRequest(method, path, statusCode, ip, ua, ms) {
+function logRequest(req, statusCode, ms) {
   try {
-    const entry = JSON.stringify({ ts: new Date().toISOString(), method, path, status: statusCode, ip: ip || "unknown", ua: (ua || "").slice(0, 200), ms });
+    const entry = JSON.stringify(requestLogRecord(req, statusCode, ms));
     appendFileSync(REQUEST_LOG, entry + "\n");
   } catch (_) {}
 }
@@ -228,7 +236,7 @@ function extractPayerFromHeader(xPayment) {
   } catch { return null; }
 }
 
-function logCallAudit(method, path, statusCode, ip, ua, xPayment, rail = "x402") {
+function logCallAudit(method, path, statusCode, ip, ua, xPayment, rail = "x402", observation = null) {
   try {
     const payer = extractPayerFromHeader(xPayment);
     const paymentStatus = statusCode === 200 ? "paid" : statusCode === 400 ? "paid_bad_params" : "paid_error";
@@ -242,6 +250,7 @@ function logCallAudit(method, path, statusCode, ip, ua, xPayment, rail = "x402")
       payer_wallet: payer,
       rail,
       status: statusCode,
+      ...observationFields(observation),
     });
     appendFileSync(CALL_AUDIT_LOG, entry + "\n");
   } catch (_) {}
@@ -330,16 +339,19 @@ app.use((req, res, next) => {
 app.use((_req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, X-PAYMENT-RESPONSE, PAYMENT-REQUIRED, Authorization");
-  res.header("Access-Control-Expose-Headers", "X-PAYMENT-RESPONSE, PAYMENT-RESPONSE, PAYMENT-REQUIRED, WWW-Authenticate");
+  res.header("Access-Control-Allow-Headers", "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, X-PAYMENT-RESPONSE, PAYMENT-REQUIRED, Authorization, X-GENIE-TEST-PROBE");
+  res.header("Access-Control-Expose-Headers", "X-PAYMENT-RESPONSE, PAYMENT-RESPONSE, PAYMENT-REQUIRED, WWW-Authenticate, X-Stall-Request-Id");
   next();
 });
+
+// Attach a sanitized correlation record before any payment or route handling.
+app.use(attachObservationContext);
 
 // Funnel instrumentation — logs every request on finish for conversion analysis
 app.use((req, res, next) => {
   const start = Date.now();
   res.on("finish", () => {
-    logRequest(req.method, req.path, res.statusCode, req.ip, req.get("user-agent"), Date.now() - start);
+    logRequest(req, res.statusCode, Date.now() - start);
   });
   next();
 });
@@ -1392,7 +1404,10 @@ app.use("/cap", capRateLimiter);
 
 app.use((req, res, next) => {
   if (req.fiatPaid) return next();
-  if (STALL_INTERNAL_KEY && req.headers["x-internal-key"] === STALL_INTERNAL_KEY) return next();
+  if (STALL_INTERNAL_KEY && req.headers["x-internal-key"] === STALL_INTERNAL_KEY) {
+    req._internalBypass = true;
+    return next();
+  }
   // PayAI canary intercepts /cap/ping only; falls through to next() for all other paths
   payAICanaryMiddleware(req, res, () => {
     if (req.payment) return next(); // PayAI canary already verified + settling — skip downstream paywalls
@@ -1443,6 +1458,7 @@ const CROSS_CAP_MAP = {
   'reddit-intel':         ['research-synthesis','fact-check','market-intelligence'],
   'defi-market-pulse':    ['crypto-top-movers','funding-rates','cdp-market-depth'],
 };
+const ACTIVE_CAP_NAMES = new Set(capabilities.map((cap) => cap.name));
 
 for (const cap of capabilities) {
   // Shared handler factory — GET reads params from req.query; POST merges req.body + req.query
@@ -1457,7 +1473,7 @@ for (const cap of capabilities) {
       if (missing.length > 0) {
         logPaidCall(cap.name, cap.price, params, 400, req.ip);
         logSettlement(cap.name, cap.price, params, 400, res, req.ip, xPayment, req);
-        logCallAudit(req.method, req.path, 400, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
+        logCallAudit(req.method, req.path, 400, req.ip, req.get("user-agent"), xPayment, req._internalBypass ? "internal" : req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402", req._observationContext);
         // Build a ready-to-use example query string from inputSchema descriptions
         const props = cap.inputSchema?.properties || {};
         const exParts = missing.map(p => {
@@ -1488,8 +1504,9 @@ for (const cap of capabilities) {
         const deliveredErrorPayload = !!(out && typeof out === "object" && !Array.isArray(out) && typeof out.error === "string");
         logPaidCall(cap.name, cap.price, params, 200, req.ip);
         logSettlement(cap.name, cap.price, params, 200, res, req.ip, xPayment, req, deliveredErrorPayload);
-        logCallAudit(req.method, req.path, 200, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
-        const relatedCaps = CROSS_CAP_MAP[cap.name];
+        logCallAudit(req.method, req.path, 200, req.ip, req.get("user-agent"), xPayment, req._internalBypass ? "internal" : req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402", req._observationContext);
+        const relatedCaps = (CROSS_CAP_MAP[cap.name] || [])
+          .filter((related) => ACTIVE_CAP_NAMES.has(related));
         if (relatedCaps && relatedCaps.length > 0) {
           res.setHeader('X-Stall-Related', relatedCaps.map(r => `${BASE_URL}/cap/${r}`).join(', '));
         }
@@ -1502,7 +1519,7 @@ for (const cap of capabilities) {
         const errorCode = isValidationError ? "bad_request" : isUpstreamUnavailable ? "upstream_unavailable" : "capability_error";
         logPaidCall(cap.name, cap.price, params, status, req.ip);
         logSettlement(cap.name, cap.price, params, status, res, req.ip, xPayment, req);
-        logCallAudit(req.method, req.path, status, req.ip, req.get("user-agent"), xPayment, req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402");
+        logCallAudit(req.method, req.path, status, req.ip, req.get("user-agent"), xPayment, req._internalBypass ? "internal" : req.fiatPaid ? "fiat" : req._polygonRail ? "polygon" : req._solanaRail ? "solana" : "x402", req._observationContext);
         if (isUpstreamUnavailable) res.setHeader("Retry-After", "5");
         res.status(status).json({ error: errorCode, capability: cap.name, message: String(err?.message || err) });
       }

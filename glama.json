@@ -430,7 +430,10 @@
       "description": "Transcribe audio from any publicly accessible URL using OpenAI Whisper. Supports mp3, mp4, m4a, wav, webm, ogg, flac, and wma up to 24 MB. Returns the full transcript text, detected language, and estimated duration in seconds. Optionally accepts an ISO 639-1 language hint to improve accuracy. Useful for processing voice memos, meeting recordings, podcast snippets, interview clips, and audio attached to social media. Undercuts orbisapi.com audio-transcription-api by 24%.",
       "inputSchema": {
         "type": "object",
-        "required": [],
+        "required": [
+          "url",
+          "source_rights_confirmed"
+        ],
         "additionalProperties": false,
         "properties": {
           "url": {
@@ -440,6 +443,11 @@
           "language": {
             "type": "string",
             "description": "Optional ISO 639-1 language code hint (e.g. 'en', 'es', 'fr', 'de', 'ja'). Improves accuracy when the audio language is known. Omit to auto-detect."
+          },
+          "source_rights_confirmed": {
+            "type": "boolean",
+            "const": true,
+            "description": "Required confirmation that the caller owns the audio or is authorized to have it transcribed."
           }
         }
       }
@@ -460,13 +468,17 @@
     },
     {
       "name": "balance-sheet",
-      "description": "Quarterly or annual balance sheet history for any US public stock. Returns cash & equivalents, short-term investments, total assets, total debt, net debt, total liabilities, stockholders' equity, book value, retained earnings, goodwill & intangibles, tangible book value, working capital, and shares outstanding. Quarterly default (up to 8 periods); annual returns up to 4 fiscal years. Critical for EV calculation (market cap + net debt), leverage screening, and distress analysis. Pairs with income-statements (P&L + cash flow) to complete the financial statement trilogy. Source: Yahoo Finance fundamentals timeseries (free, no API key required).",
+      "description": "Quarterly or annual balance-sheet history for a US public company from issuer-filed SEC EDGAR XBRL facts. Returns cash, investments, assets, debt, liabilities, equity, retained earnings, tangible book value, working capital, and shares outstanding. Source: official SEC Companyfacts API; no API key.",
       "inputSchema": {
         "type": "object",
+        "required": [
+          "ticker"
+        ],
+        "additionalProperties": false,
         "properties": {
           "ticker": {
             "type": "string",
-            "description": "US equity ticker symbol (e.g. 'AAPL', 'MSFT', 'NVDA', 'TSLA')."
+            "description": "US-listed company ticker, such as AAPL or MSFT."
           },
           "period": {
             "type": "string",
@@ -474,16 +486,15 @@
               "quarterly",
               "annual"
             ],
-            "description": "Period type. Default: 'quarterly' (up to 8 recent quarters). 'annual' returns up to 4 fiscal years."
+            "description": "Defaults to quarterly. Annual uses annual filing forms only."
           },
           "limit": {
             "type": "integer",
             "minimum": 1,
             "maximum": 8,
-            "description": "Max periods to return (1–8 for quarterly; 1–4 for annual). Default: 4."
+            "description": "Periods to return; default 4."
           }
-        },
-        "required": []
+        }
       }
     },
     {
@@ -7066,20 +7077,6 @@
       }
     },
     {
-      "name": "us-stock-price",
-      "description": "Returns current US equity price and intraday metrics (change %, volume, day high/low, 52-week range) for any NYSE/NASDAQ ticker. Sourced from Yahoo Finance public data — no API key, live during market hours. $0.005/call.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "ticker": {
-            "type": "string",
-            "description": "US stock ticker symbol (e.g. AMD, AAPL, NVDA). Case-insensitive."
-          }
-        },
-        "required": []
-      }
-    },
-    {
       "name": "usgs-earthquake",
       "description": "Real-time global earthquake events from USGS. Filter by magnitude, depth, location radius, or time window. Returns location, magnitude, depth, PAGER alert, and USGS event URL. Free primary source — no API key.",
       "inputSchema": {
@@ -7115,9 +7112,10 @@
     },
     {
       "name": "vc-funding-intel",
-      "description": "Private fundraising round tracker via SEC Form D EDGAR filings. Regulation D offerings (Rule 506(b)/506(c)/504) must be reported within 15 days of first sale — a near-real-time window into VC rounds, PE buyouts, startup raises, hedge fund raises, and real estate syndicates. Mode 'company' (company_name): all Form D filings for that company with amount raised, industry group, exemption type (506b/506c/504), investor count, and state. Mode 'recent': market-wide feed of new Reg D offerings in the last N days (max 90), filterable by minimum raise amount in millions. Free SEC government data, no API key. $0.015/call.",
+      "description": "Private fundraising round tracker via SEC Form D EDGAR filings. Regulation D offerings (Rule 506(b)/506(c)/504) must be reported within 15 days of first sale — a near-real-time window into VC rounds, PE buyouts, startup raises, hedge fund raises, and real estate syndicates. Mode 'company' (company_name): all Form D filings for that company with amount raised, industry group, exemption type (506b/506c/504), investor count, and state. Mode 'recent': market-wide feed of new Reg D offerings in the last N days (max 90), filterable by minimum raise amount in millions. Free SEC government data, no API key. Supports filed_after as an incremental polling cursor. $0.021/call.",
       "inputSchema": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "company_name": {
             "type": "string",
@@ -7147,6 +7145,11 @@
             "description": "Max results to return (default 20, max 50).",
             "minimum": 1,
             "maximum": 50
+          },
+          "filed_after": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Optional incremental cursor. Return only filings after this YYYY-MM-DD date; reuse next_filed_after on the next poll."
           }
         }
       }
@@ -7902,29 +7905,6 @@
         "required": [
           "query"
         ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "youtube-transcript",
-      "description": "Full transcript extraction for any YouTube video. Downloads auto-generated English subtitles via yt-dlp (no auth), parses VTT into timestamped segments with deduplication, and returns both segment array and plain-text transcript. Format 'text' returns only the text string. Accepts any YouTube URL format or bare 11-character video ID.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "video": {
-            "type": "string",
-            "description": "YouTube video URL (any format: watch?v=, youtu.be, /shorts/) or bare 11-character video ID."
-          },
-          "format": {
-            "type": "string",
-            "enum": [
-              "segments",
-              "text"
-            ],
-            "description": "Output format. 'segments' = timestamped array + text (default). 'text' = plain string only."
-          }
-        },
-        "required": [],
         "additionalProperties": false
       }
     },

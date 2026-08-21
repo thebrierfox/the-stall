@@ -44,13 +44,24 @@ const PER_CAP_MAX_USD   = 0.10;
 const RUN_BUDGET_USD    = 0.15;
 // Halt seeder if wallet falls below this floor
 const WALLET_FLOOR_USD  = 0.50;
+// Rolling 30-day seeding-spend ceiling — approved 2026-07-23 (Kyle, reviewing the
+// revenue-preservation bundle: seeder spend was outpacing organic revenue it runs
+// alongside). Controlled budget ceiling, not a full shutoff: seeding pauses once the
+// trailing-30-day total hits this and resumes automatically as older spend ages out.
+const MONTHLY_BUDGET_USD = 30;
+const MONTHLY_WINDOW_MS  = 30 * 24 * 3600 * 1000;
+const SPEND_LOG_FILE     = `${process.env.HOME}/intuitek/logs/seeder_monthly_spend.jsonl`;
+const AUTH_FLAG_FILE     = `${process.env.HOME}/intuitek/credentials/SELF_TEST_AUTHORIZED`;
 // Re-seed a cap after this many hours (keeps "verified-live" status fresh)
 const RESEED_AFTER_HOURS = 84;
 // Skip a cap from seeding queue after it fails, for this many hours
 const FAIL_COOLDOWN_HOURS = 24;
 
-// All active STALL caps (sync with capabilities/*.js — excludes _retired/)
-const ALL_CAPS = [
+// Fallback cap list — used only if the live /catalog fetch below fails at startup.
+// Kept roughly in sync with capabilities/*.js but WILL drift over time since nothing
+// enforces it; the live fetch is now the source of truth (fixed 2026-07-23 after this
+// list drifted twice in 2 weeks — see stall_discovery_parity.py Gate 4 audit).
+const FALLBACK_CAPS = [
   "address-security","agent-access-check","agent-kya-score","ai-image-gen","air-quality",
   "analyst-ratings","analyst-upgrades","arxiv-intel","audio-transcribe","aviation-weather","base-season",
   "block-intel","breadcrumb-extractor","btc-game-theory","btc-miner-econ","btc-systems-theory",
@@ -110,6 +121,9 @@ const ALL_CAPS = [
   "stock-compare","stock-monitor-builder","technical-indicators","tvmaze-intel","vc-funding-intel",
   "volatility-brief","weather-equity-brief","weather-research-brief","youtube-channel-analytics",
   "youtube-keyword-research","youtube-niche-intel","youtube-revenue-estimate","youtube-video-analytics",
+  // 8 caps added 2026-07-23 — second drift found by stall_discovery_parity.py Gate 4 audit
+  "code-security-scan","company-research-bundle","gitleaks-scan","policy-compile-a",
+  "policy-compile-b","security-recon","semgrep-sast","vuln-intel",
 ];
 
 // Cap-specific query params for caps that require non-empty inputs to succeed.
@@ -169,6 +183,26 @@ const SEEDER_CAP_INPUTS = {
   "address-intel":             { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
   // Caps requiring params — confirmed 500 without (added 2026-07-14 C1 fix)
   "pypi-intel":                { package: "requests" },
+  // 17 caps confirmed HTTP_400 without inputs (2026-07-25, found via settlement.jsonl
+  // seeder-payer 400 audit — all present in ALL_CAPS roster since 2026-07-09/07-23 but
+  // never got required-param entries here)
+  "fred-query":                { series_id: "PAYEMS" },
+  "guidance-quality":          { ticker: "AAPL" },
+  "insider-trading-intel":     { mode: "ticker", ticker: "AAPL" },
+  "institutional-ownership-intel": { ticker: "AAPL" },
+  "llm-proxy":                 { prompt: "seeder health check" },
+  "open-food-intel":           { mode: "search", query: "peanut butter" },
+  "patent-intel":              { mode: "company", company: "AAPL" },
+  "policy-compile-a":          { route_class: "ENTITY" },
+  "revenue-growth-intel":      { ticker: "AAPL" },
+  "short-interest-intel":      { ticker: "AAPL" },
+  "technical-indicators":      { ticker: "AAPL" },
+  "tvmaze-intel":              { mode: "search", query: "the office" },
+  "youtube-channel-analytics": { channel: "@3blue1brown" },
+  "youtube-keyword-research":  { query: "bitcoin price analysis" },
+  "youtube-niche-intel":       { query: "bitcoin price analysis" },
+  "youtube-revenue-estimate":  { channel: "@3blue1brown" },
+  "youtube-video-analytics":   { video: "dQw4w9WgXcQ" },
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -199,6 +233,57 @@ function saveState(state) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// Merge server-declared extensions with any the payment mechanism generates.
+// Plain-object recursive merge; mechanism values win on conflict. Arrays and
+// non-objects are replaced, not concatenated.
+function deepMergeExtensions(base, overlay) {
+  const isPlain = v => v !== null && typeof v === "object" && !Array.isArray(v);
+  if (!isPlain(base)) return isPlain(overlay) ? { ...overlay } : (overlay ?? base);
+  if (!isPlain(overlay)) return { ...base };
+  const out = { ...base };
+  for (const [k, v] of Object.entries(overlay)) {
+    out[k] = (isPlain(v) && isPlain(base[k])) ? deepMergeExtensions(base[k], v) : v;
+  }
+  return out;
+}
+
+// Sum of logged seeding spend within the trailing MONTHLY_WINDOW_MS.
+function getRolling30dSpend() {
+  if (!existsSync(SPEND_LOG_FILE)) return 0;
+  const cutoff = Date.now() - MONTHLY_WINDOW_MS;
+  try {
+    return readFileSync(SPEND_LOG_FILE, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map(line => { try { return JSON.parse(line); } catch { return null; } })
+      .filter(e => e && e.ts >= cutoff)
+      .reduce((sum, e) => sum + e.amount, 0);
+  } catch { return 0; }
+}
+
+function logSpend(amount) {
+  if (amount <= 0) return;
+  try { appendFileSync(SPEND_LOG_FILE, JSON.stringify({ ts: Date.now(), amount }) + "\n"); } catch {}
+}
+
+// Live cap list from /catalog — this is the actual source of truth (same data the
+// discovery-parity audit confirmed matches /health and capabilities/ exactly at 301).
+// Falls back to FALLBACK_CAPS on any fetch/parse failure so a transient network blip
+// never halts seeding.
+async function fetchLiveCaps() {
+  try {
+    const resp = await fetch(`${BASE_URL}/catalog`, { signal: AbortSignal.timeout(12000) });
+    if (!resp.ok) throw new Error(`status=${resp.status}`);
+    const data = await resp.json();
+    const names = (data.capabilities || []).map(c => c.name).filter(Boolean);
+    if (!names.length) throw new Error("empty capabilities list");
+    return names;
+  } catch (e) {
+    log(`WARN: live /catalog fetch failed (${e.message}) — using FALLBACK_CAPS (${FALLBACK_CAPS.length} caps, may be stale)`);
+    return FALLBACK_CAPS;
+  }
+}
+
 async function probeCap(capName) {
   const url = `${BASE_URL}/cap/${capName}`;
   try {
@@ -221,19 +306,42 @@ async function seedCap(evmScheme, capName, requirements, payReq) {
   const qs = new URLSearchParams({ ...extraParams, seed: "continuous_seeder" }).toString();
   const url = `${BASE_URL}/cap/${capName}?${qs}`;
   try {
-    const partialPayload = await evmScheme.createPaymentPayload(requirements.x402Version, payReq);
+    // Pass the server-declared extensions as PaymentPayloadContext. Confirmed
+    // present in the installed @x402/evm 2.14.0 signature:
+    //   createPaymentPayload(x402Version, paymentRequirements, context?)
+    const partialPayload = await evmScheme.createPaymentPayload(
+      requirements.x402Version,
+      payReq,
+      { extensions: requirements.extensions },
+    );
+
+    // Carry the COMPLETE server declaration through to the signed payload.
+    // Prior behavior omitted `extensions` entirely, so every seeder settle was
+    // structurally incapable of contributing to CDP Bazaar ingestion even when
+    // it succeeded on-chain and returned HTTP 200.
+    const mergedExtensions = deepMergeExtensions(
+      requirements.extensions,
+      partialPayload.extensions,
+    );
+
     const paymentPayload = {
-      x402Version: partialPayload.x402Version,
+      // Use the CHALLENGE's version, not the scheme result's — the 402 is
+      // authoritative for protocol version.
+      x402Version: requirements.x402Version,
       payload: partialPayload.payload,
       resource: requirements.resource,
       accepted: payReq,
+      ...(mergedExtensions && Object.keys(mergedExtensions).length
+        ? { extensions: mergedExtensions }
+        : {}),
     };
+    const bazaarEchoed = !!paymentPayload.extensions?.bazaar;
     const paymentHeader = encodePaymentSignatureHeader(paymentPayload);
     const resp = await fetch(url, {
       headers: { "X-PAYMENT": paymentHeader, "PAYMENT-SIGNATURE": paymentHeader },
       signal: AbortSignal.timeout(25000),
     });
-    return { status: resp.status, ok: resp.status === 200 };
+    return { status: resp.status, ok: resp.status === 200, bazaarEchoed };
   } catch (e) {
     return { status: 0, ok: false, err: e.message.slice(0, 80) };
   }
@@ -245,6 +353,14 @@ async function seedCap(evmScheme, capName, requirements, payReq) {
 async function main() {
   log("=== CONTINUOUS SEEDER START ===");
   log(`Config: ${CAPS_PER_RUN} caps/run | max $${PER_CAP_MAX_USD}/cap | $${RUN_BUDGET_USD}/run | floor $${WALLET_FLOOR_USD}`);
+
+  if (!existsSync(AUTH_FLAG_FILE)) {
+    log(`[AUTH-PAUSED] ${AUTH_FLAG_FILE} is absent — no catalog fetch, wallet access, signature, or paid request attempted`);
+    return;
+  }
+
+  const ALL_CAPS = await fetchLiveCaps();
+  log(`Cap roster: ${ALL_CAPS.length} caps (source: ${ALL_CAPS === FALLBACK_CAPS ? "FALLBACK_CAPS" : "live /catalog"})`);
 
   const SEEDER_KEY = process.env.AEGIS_WALLET_PRIVATE_KEY;
   if (!SEEDER_KEY) { log("FATAL: AEGIS_WALLET_PRIVATE_KEY not set — exiting"); process.exit(0); }
@@ -270,6 +386,19 @@ async function main() {
   const state = loadState();
   const nowMs = Date.now();
   const reseedMs = RESEED_AFTER_HOURS * 3600 * 1000;
+
+  // Monthly budget ceiling — checked before touching the rotation queue
+  const rolling30dSpend = getRolling30dSpend();
+  if (rolling30dSpend >= MONTHLY_BUDGET_USD) {
+    log(`[BUDGET-CEILING] 30-day seeding spend $${rolling30dSpend.toFixed(2)} >= $${MONTHLY_BUDGET_USD} ceiling — pausing until older spend ages out of the window`);
+    const lastNotifyMs = state.__last_budget_notify_ms || 0;
+    if (nowMs - lastNotifyMs > 24 * 3600 * 1000) {
+      notify(`⏸️ [Seeder] Monthly budget ceiling hit ($${rolling30dSpend.toFixed(2)}/$${MONTHLY_BUDGET_USD}) — seeding paused, resumes as spend ages out of the 30d window`);
+      state.__last_budget_notify_ms = nowMs;
+      saveState(state);
+    }
+    process.exit(0);
+  }
 
   // Pick caps due for seeding: unseeded first, then oldest last_seeded
   // Skip caps that failed recently (FAIL_COOLDOWN_HOURS) to prevent head-of-line blocking
@@ -344,7 +473,7 @@ async function main() {
       spent += price;
       seeded++;
       state[cap] = { last_seeded_ms: nowMs, last_price: price, last_status: `HTTP_${result.status}` };
-      log(`    ✓ HTTP_${result.status} | run_spent=$${spent.toFixed(4)}`);
+      log(`    ✓ HTTP_${result.status} | bazaar_echo=${result.bazaarEchoed === true} | run_spent=$${spent.toFixed(4)}`);
     } else {
       failed++;
       const prevFails = state[cap]?.consecutive_failures || 0;
@@ -368,8 +497,9 @@ async function main() {
   }).length - due.length;
 
   saveState(state);
+  logSpend(spent);
 
-  log(`=== DONE: seeded=${seeded} skipped=${skipped} failed=${failed} spent=$${spent.toFixed(4)} wallet=$${walletBalFinal.toFixed(4)} ===`);
+  log(`=== DONE: seeded=${seeded} skipped=${skipped} failed=${failed} spent=$${spent.toFixed(4)} wallet=$${walletBalFinal.toFixed(4)} | 30d_total=$${(rolling30dSpend + spent).toFixed(2)}/$${MONTHLY_BUDGET_USD} ===`);
 
   if (seeded > 0) {
     notify(`✅ [Seeder] ${seeded} caps verified-live ($${spent.toFixed(3)} USDC). Wallet: $${walletBalFinal.toFixed(2)}. ~${dueNext} caps still due.`);

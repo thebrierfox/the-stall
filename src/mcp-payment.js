@@ -12,6 +12,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { getAuthHeaders } from "@coinbase/cdp-sdk/auth";
 import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
+import { lightningAttributionFor } from "./lightning-attribution.js";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const LOG_DIR = join(__dir, "..", "logs");
@@ -157,12 +158,15 @@ export function readMcpPaymentStats() {
   const counts = {};
   const settledByTool = {};
   const uniquePayers = new Set();
+  const attributedUniquePayers = new Set();
   const selfWallets = csvSet(process.env.MCP_SELF_WALLETS).size
     ? new Set([...csvSet(process.env.MCP_SELF_WALLETS)].map(v => v.toLowerCase()))
     : new Set();
   let revenueUsd = 0;
   let organicRevenueUsd = 0;
   let organicSettlements = 0;
+  let lightningAttributedOrganicRevenueUsd = 0;
+  let lightningAttributedOrganicSettlements = 0;
   for (const row of rows) {
     counts[row.event] = (counts[row.event] || 0) + 1;
     if (row.event === "settled") {
@@ -174,6 +178,11 @@ export function readMcpPaymentStats() {
       if (payer && !selfWallets.has(payer)) {
         organicSettlements += 1;
         organicRevenueUsd += amount;
+        if (row.lightning_attribution?.eligible === true) {
+          lightningAttributedOrganicSettlements += 1;
+          lightningAttributedOrganicRevenueUsd += amount;
+          attributedUniquePayers.add(payer);
+        }
       }
     }
   }
@@ -189,6 +198,9 @@ export function readMcpPaymentStats() {
     revenue_usd: Number(revenueUsd.toFixed(6)),
     organic_settlements: organicSettlements,
     organic_revenue_usd: Number(organicRevenueUsd.toFixed(6)),
+    lightning_attributed_organic_settlements: lightningAttributedOrganicSettlements,
+    lightning_attributed_organic_revenue_usd: Number(lightningAttributedOrganicRevenueUsd.toFixed(6)),
+    lightning_attributed_unique_payers: attributedUniquePayers.size,
     unique_payers: uniquePayers.size,
     self_wallet_filter_configured: selfWallets.size > 0,
     challenge_to_settlement_ratio: challenges > 0
@@ -263,6 +275,24 @@ export async function createMcpPaymentController(capabilities) {
     throw new Error(`MCP payment mode '${mode}' resolved to zero paid tools; refusing a silent free-execution configuration.`);
   }
 
+  // Preserve the exact decision context seen at payment verification. Hooks for a
+  // single paid call receive the same paymentPayload object in current @x402/mcp;
+  // WeakMap avoids retaining payer objects after the call. If a future library
+  // version does not preserve object identity, settlement falls back to a fresh
+  // fail-closed runtime read rather than inventing attribution.
+  const attributionByPayment = new WeakMap();
+  function attributionFor(cap, paymentPayload = null) {
+    if (paymentPayload && typeof paymentPayload === "object") {
+      const existing = attributionByPayment.get(paymentPayload);
+      if (existing) return existing;
+    }
+    const attribution = lightningAttributionFor(cap.name, { price: cap.price });
+    if (paymentPayload && typeof paymentPayload === "object") {
+      attributionByPayment.set(paymentPayload, attribution);
+    }
+    return attribution;
+  }
+
   const wrappers = new Map();
   for (const cap of paidCapabilities) {
     const accepts = await requirementsFor(cap.price);
@@ -285,6 +315,7 @@ export async function createMcpPaymentController(capabilities) {
       }),
       hooks: {
         onBeforeExecution: async ({ paymentPayload }) => {
+          const lightningAttribution = attributionFor(cap, paymentPayload);
           writeEvent("verified", {
             tool: cap.name,
             price: cap.price,
@@ -292,6 +323,7 @@ export async function createMcpPaymentController(capabilities) {
             network,
             payer: extractPayer(paymentPayload),
             mode,
+            lightning_attribution: lightningAttribution,
           });
           return true;
         },
@@ -304,9 +336,11 @@ export async function createMcpPaymentController(capabilities) {
             payer: extractPayer(paymentPayload),
             mode,
             is_error: Boolean(result?.isError),
+            lightning_attribution: attributionFor(cap, paymentPayload),
           });
         },
         onAfterSettlement: async ({ settlement, paymentPayload }) => {
+          const lightningAttribution = attributionFor(cap, paymentPayload);
           writeEvent("settled", {
             tool: cap.name,
             price: cap.price,
@@ -315,7 +349,11 @@ export async function createMcpPaymentController(capabilities) {
             payer: extractPayer(paymentPayload),
             transaction: extractTransaction(settlement),
             mode,
+            lightning_attribution: lightningAttribution,
           });
+          if (paymentPayload && typeof paymentPayload === "object") {
+            attributionByPayment.delete(paymentPayload);
+          }
         },
       },
     });
@@ -339,6 +377,7 @@ export async function createMcpPaymentController(capabilities) {
             price_usd: priceUsd,
             network,
             mode,
+            lightning_attribution: attributionFor(cap),
           });
         }
         try {
@@ -351,6 +390,7 @@ export async function createMcpPaymentController(capabilities) {
               network,
               payer: extractPayer(paymentPayload),
               mode,
+              lightning_attribution: attributionFor(cap, paymentPayload),
             });
           }
           return result;
@@ -363,6 +403,7 @@ export async function createMcpPaymentController(capabilities) {
             payer: extractPayer(paymentPayload),
             mode,
             error: String(error?.message || error).slice(0, 240),
+            lightning_attribution: attributionFor(cap, paymentPayload),
           });
           throw error;
         }

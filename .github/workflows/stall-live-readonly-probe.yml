@@ -39,16 +39,19 @@ jobs:
           except Exception as e:
               print(f"{name}.json=INVALID:{type(e).__name__}")
               raise SystemExit(1)
+
           if name == 'health':
-              for k in ('ok','status','version','capabilities','cap_count','network'):
+              for k in ('ok','status','version','cap_count','network'):
                   if k in obj: print(f"health.{k}={obj[k]}")
+              caps=obj.get('capabilities')
+              if isinstance(caps,list): print(f"health.capability_count={len(caps)}")
           elif name == 'catalog':
               if isinstance(obj, list):
                   print(f"catalog.count={len(obj)}")
               elif isinstance(obj, dict):
                   caps = obj.get('capabilities') or obj.get('tools') or obj.get('data')
                   if isinstance(caps, list): print(f"catalog.count={len(caps)}")
-                  for k in ('version','count','cap_count'):
+                  for k in ('version','count','cap_count','network'):
                       if k in obj: print(f"catalog.{k}={obj[k]}")
           elif name == 'x402':
               if isinstance(obj, dict):
@@ -59,6 +62,24 @@ jobs:
               if isinstance(obj, dict):
                   for k in ('name','version','url'):
                       if k in obj: print(f"agent.{k}={obj[k]}")
+          elif name == 'stats':
+              if isinstance(obj, dict):
+                  # Public aggregate economic/runtime fields only; never print request rows or headers.
+                  for k in ('total_calls','paid_calls','total_revenue_usd','revenue_usd','unique_payers','capabilities','version'):
+                      if k in obj and not isinstance(obj[k], (dict,list)):
+                          print(f"stats.{k}={obj[k]}")
+                  mcp=obj.get('mcp_payments')
+                  if isinstance(mcp,dict):
+                      for k in ('mode','challenges','verified','executed','settlements','rejected','revenue_usd','organic_settlements','organic_revenue_usd','unique_payers','challenge_to_settlement_ratio','verification_to_settlement_rate'):
+                          if k in mcp: print(f"stats.mcp.{k}={mcp[k]}")
+                      top=mcp.get('top_settled_tools')
+                      if isinstance(top,list): print('stats.mcp.top_settled_tools=' + json.dumps(top,separators=(',',':')))
+          elif name == 'metrics':
+              if isinstance(obj, dict):
+                  # Keep output aggregate-only.
+                  for k,v in obj.items():
+                      if isinstance(v,(str,int,float,bool)) or v is None:
+                          print(f"metrics.{k}={v}")
           PY
             fi
           }
@@ -67,6 +88,8 @@ jobs:
           probe_json catalog '/catalog'
           probe_json x402 '/.well-known/x402'
           probe_json agent '/.well-known/agent.json'
+          probe_json stats '/stats'
+          probe_json metrics '/metrics'
 
           HEALTH=$(curl -sS --connect-timeout 10 --max-time 20 -o /dev/null -w '%{http_code}' "$BASE/health" || true)
           test "$HEALTH" = '200'

@@ -1,0 +1,74 @@
+name: STALL live read-only probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/stall-live-readonly-probe.yml'
+      - 'src/**'
+      - 'package.json'
+      - 'tests/**'
+
+permissions:
+  contents: read
+
+jobs:
+  public-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe public STALL runtime without payment or secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://the-stall.intuitek.ai'
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+
+          probe_json() {
+            local name="$1" path="$2"
+            local code
+            code=$(curl -sS --connect-timeout 10 --max-time 20 -o "$TMP/$name.json" -w '%{http_code}' "$BASE$path" || true)
+            echo "$name.status=$code"
+            if [ "$code" = '200' ]; then
+              python3 - "$name" "$TMP/$name.json" <<'PY'
+          import json, sys
+          name, path = sys.argv[1:]
+          try:
+              obj = json.load(open(path, encoding='utf-8'))
+          except Exception as e:
+              print(f"{name}.json=INVALID:{type(e).__name__}")
+              raise SystemExit(1)
+          if name == 'health':
+              for k in ('ok','status','version','capabilities','cap_count','network'):
+                  if k in obj: print(f"health.{k}={obj[k]}")
+          elif name == 'catalog':
+              if isinstance(obj, list):
+                  print(f"catalog.count={len(obj)}")
+              elif isinstance(obj, dict):
+                  caps = obj.get('capabilities') or obj.get('tools') or obj.get('data')
+                  if isinstance(caps, list): print(f"catalog.count={len(caps)}")
+                  for k in ('version','count','cap_count'):
+                      if k in obj: print(f"catalog.{k}={obj[k]}")
+          elif name == 'x402':
+              if isinstance(obj, dict):
+                  print('x402.keys=' + ','.join(sorted(obj.keys())[:20]))
+                  txt=json.dumps(obj).lower()
+                  print('x402.base_mainnet_present=' + str(('eip155:8453' in txt) or ('base' in txt)).lower())
+          elif name == 'agent':
+              if isinstance(obj, dict):
+                  for k in ('name','version','url'):
+                      if k in obj: print(f"agent.{k}={obj[k]}")
+          PY
+            fi
+          }
+
+          probe_json health '/health'
+          probe_json catalog '/catalog'
+          probe_json x402 '/.well-known/x402'
+          probe_json agent '/.well-known/agent.json'
+
+          HEALTH=$(curl -sS --connect-timeout 10 --max-time 20 -o /dev/null -w '%{http_code}' "$BASE/health" || true)
+          test "$HEALTH" = '200'
+          echo 'PROBE_EXTERNAL_EFFECT=FALSE'
+          echo 'PROBE_PAYMENT=FALSE'

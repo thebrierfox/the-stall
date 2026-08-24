@@ -1,0 +1,33 @@
+name: STALL Lightning attribution tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lightning-attribution.js'
+      - 'scripts/watch_rest_lightning_attribution.mjs'
+      - 'scripts/activate_lightning_decision.mjs'
+      - 'tests/test_lightning_attribution.js'
+      - 'tests/test_rest_lightning_attribution.js'
+      - 'tests/test_activate_lightning_decision.js'
+      - '.github/workflows/rest-lightning-attribution-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax gate
+        run: |
+          node --check src/lightning-attribution.js
+          node --check scripts/watch_rest_lightning_attribution.mjs
+          node --check scripts/activate_lightning_decision.mjs
+      - name: Attribution tests
+        run: node --test tests/test_lightning_attribution.js tests/test_rest_lightning_attribution.js tests/test_activate_lightning_decision.js

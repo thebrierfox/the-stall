@@ -1,0 +1,118 @@
+name: STALL live read-only probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/stall-live-readonly-probe.yml'
+      - 'src/**'
+      - 'package.json'
+      - 'tests/**'
+
+permissions:
+  contents: read
+
+jobs:
+  source-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check touched payment path
+        run: |
+          node --check src/lightning-attribution.js
+          node --check src/mcp-payment.js
+      - name: Run Lightning attribution fail-closed tests
+        run: node --test tests/test_lightning_attribution.js
+
+  public-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe public STALL runtime without payment or secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://the-stall.intuitek.ai'
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+
+          probe_json() {
+            local name="$1" path="$2"
+            local code
+            code=$(curl -sS --connect-timeout 10 --max-time 20 -o "$TMP/$name.json" -w '%{http_code}' "$BASE$path" || true)
+            echo "$name.status=$code"
+            if [ "$code" = '200' ]; then
+              python3 - "$name" "$TMP/$name.json" <<'PY'
+          import json, sys
+          name, path = sys.argv[1:]
+          try:
+              obj = json.load(open(path, encoding='utf-8'))
+          except Exception as e:
+              print(f"{name}.json=INVALID:{type(e).__name__}")
+              raise SystemExit(1)
+
+          if name == 'health':
+              for k in ('ok','status','version','cap_count','network'):
+                  if k in obj: print(f"health.{k}={obj[k]}")
+              caps=obj.get('capabilities')
+              if isinstance(caps,list): print(f"health.capability_count={len(caps)}")
+          elif name == 'catalog':
+              if isinstance(obj, list):
+                  print(f"catalog.count={len(obj)}")
+              elif isinstance(obj, dict):
+                  caps = obj.get('capabilities') or obj.get('tools') or obj.get('data')
+                  if isinstance(caps, list): print(f"catalog.count={len(caps)}")
+                  for k in ('version','count','cap_count','network'):
+                      if k in obj: print(f"catalog.{k}={obj[k]}")
+          elif name == 'x402':
+              if isinstance(obj, dict):
+                  print('x402.keys=' + ','.join(sorted(obj.keys())[:20]))
+                  txt=json.dumps(obj).lower()
+                  print('x402.base_mainnet_present=' + str(('eip155:8453' in txt) or ('base' in txt)).lower())
+          elif name == 'agent':
+              if isinstance(obj, dict):
+                  for k in ('name','version','url'):
+                      if k in obj: print(f"agent.{k}={obj[k]}")
+          elif name == 'stats':
+              if isinstance(obj, dict):
+                  for k in ('capabilities','paid_calls_total','unique_caps_called','first_call_at','network','ts'):
+                      if k in obj and not isinstance(obj[k], (dict,list)):
+                          print(f"stats.{k}={obj[k]}")
+                  mcp=obj.get('mcp_payments')
+                  if isinstance(mcp,dict):
+                      for k in ('mode','challenges','verified','executed','settlements','rejected','revenue_usd','organic_settlements','organic_revenue_usd','lightning_attributed_organic_settlements','lightning_attributed_organic_revenue_usd','lightning_attributed_unique_payers','unique_payers','challenge_to_settlement_ratio','verification_to_settlement_rate'):
+                          if k in mcp: print(f"stats.mcp.{k}={mcp[k]}")
+                      top=mcp.get('top_settled_tools')
+                      if isinstance(top,list): print('stats.mcp.top_settled_tools=' + json.dumps(top,separators=(',',':')))
+          elif name == 'metrics':
+              if isinstance(obj, dict):
+                  for k in ('unique_ips','unique_probe_ips','request_total','ts'):
+                      if k in obj: print(f"metrics.{k}={obj[k]}")
+                  for section in ('funnel','conversion'):
+                      val=obj.get(section)
+                      if isinstance(val,dict):
+                          for k,v in val.items(): print(f"metrics.{section}.{k}={v}")
+                  for k in ('top_probed_caps','top_paid_caps'):
+                      val=obj.get(k)
+                      if isinstance(val,list): print(f"metrics.{k}=" + json.dumps(val,separators=(',',':')))
+          PY
+            fi
+          }
+
+          probe_json health '/health'
+          probe_json catalog '/catalog'
+          probe_json x402 '/.well-known/x402'
+          probe_json agent '/.well-known/agent.json'
+          probe_json stats '/stats'
+          probe_json metrics '/metrics'
+
+          HEALTH=$(curl -sS --connect-timeout 10 --max-time 20 -o /dev/null -w '%{http_code}' "$BASE/health" || true)
+          test "$HEALTH" = '200'
+          echo 'PROBE_EXTERNAL_EFFECT=FALSE'
+          echo 'PROBE_PAYMENT=FALSE'

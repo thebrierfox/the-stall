@@ -81,7 +81,7 @@ jobs:
                       if k in obj: print(f"agent.{k}={obj[k]}")
           elif name == 'stats':
               if isinstance(obj, dict):
-                  for k in ('total_calls','paid_calls','total_revenue_usd','revenue_usd','unique_payers','capabilities','version'):
+                  for k in ('capabilities','paid_calls_total','unique_caps_called','first_call_at','network','ts'):
                       if k in obj and not isinstance(obj[k], (dict,list)):
                           print(f"stats.{k}={obj[k]}")
                   mcp=obj.get('mcp_payments')
@@ -92,9 +92,15 @@ jobs:
                       if isinstance(top,list): print('stats.mcp.top_settled_tools=' + json.dumps(top,separators=(',',':')))
           elif name == 'metrics':
               if isinstance(obj, dict):
-                  for k,v in obj.items():
-                      if isinstance(v,(str,int,float,bool)) or v is None:
-                          print(f"metrics.{k}={v}")
+                  for k in ('unique_ips','unique_probe_ips','request_total','ts'):
+                      if k in obj: print(f"metrics.{k}={obj[k]}")
+                  for section in ('funnel','conversion'):
+                      val=obj.get(section)
+                      if isinstance(val,dict):
+                          for k,v in val.items(): print(f"metrics.{section}.{k}={v}")
+                  for k in ('top_probed_caps','top_paid_caps'):
+                      val=obj.get(k)
+                      if isinstance(val,list): print(f"metrics.{k}=" + json.dumps(val,separators=(',',':')))
           PY
             fi
           }

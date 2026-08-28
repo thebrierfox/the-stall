@@ -1,0 +1,312 @@
+name: TEMP FamilyAccess forensic transcript
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.transcription-run/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: familyaccess-transcript-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  transcribe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - name: Checkout trigger branch
+        uses: actions/checkout@v4
+
+      - name: Install deterministic prerequisites
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg unzip
+          python -m pip install --disable-pip-version-check 'gdown==5.2.0'
+
+      - name: Fetch original Drive source and preserve provenance
+        env:
+          DRIVE_FILE_ID: 1Vhpabwlune4FqU0Q8J4Wx7jNX19In4zQ
+        run: |
+          set -euo pipefail
+          mkdir -p work artifacts
+          python - <<'PY'
+          import os, gdown
+          fid = os.environ['DRIVE_FILE_ID']
+          out = 'work/FamilyAccessMotionx2.mp4'
+          r = gdown.download(url=f'https://drive.google.com/uc?id={fid}', output=out, quiet=False, fuzzy=True)
+          if not r:
+              raise SystemExit('Drive source download failed')
+          PY
+          test -s work/FamilyAccessMotionx2.mp4
+          sha256sum work/FamilyAccessMotionx2.mp4 | tee artifacts/SOURCE_SHA256.txt
+          ffprobe -v quiet -print_format json -show_format -show_streams work/FamilyAccessMotionx2.mp4 > artifacts/SOURCE_FFPROBE.json
+          ffmpeg -hide_banner -loglevel error -y -i work/FamilyAccessMotionx2.mp4 -map 0:a:0 -c:a copy work/FamilyAccessMotionx2_original_audio.m4a
+          ffmpeg -hide_banner -loglevel error -y -i work/FamilyAccessMotionx2.mp4 -map 0:a:0 -ac 1 -ar 16000 -c:a pcm_s16le work/FamilyAccessMotionx2_16k_mono.wav
+          sha256sum work/FamilyAccessMotionx2_original_audio.m4a work/FamilyAccessMotionx2_16k_mono.wav | tee artifacts/AUDIO_DERIVATIVE_SHA256.txt
+
+      - name: Fetch verified whisper.cpp runtime and models
+        run: |
+          set -euo pipefail
+          mkdir -p runtime models
+          curl -fL --retry 5 --retry-all-errors \
+            -o runtime/whisper-bin-ubuntu-x64.tar.gz \
+            https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.1/whisper-bin-ubuntu-x64.tar.gz
+          tar -xzf runtime/whisper-bin-ubuntu-x64.tar.gz -C runtime
+          CLI="$(find runtime -type f -name whisper-cli -perm -111 | head -n1)"
+          test -n "$CLI"
+          echo "CLI=$CLI" >> "$GITHUB_ENV"
+          echo "WHISPER_LIB_DIR=$(dirname "$CLI")" >> "$GITHUB_ENV"
+          "$CLI" --version | tee artifacts/WHISPER_CPP_VERSION.txt || true
+
+          curl -fL --retry 5 --retry-all-errors \
+            -o models/ggml-large-v3-turbo-q5_0.bin \
+            https://github.com/moonlightdarkfx987-netizen/kryventa-auto-caption-models/releases/download/v2.0.0/ggml-large-v3-turbo-q5_0.bin
+          echo '394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2  models/ggml-large-v3-turbo-q5_0.bin' | sha256sum -c -
+          test "$(stat -c %s models/ggml-large-v3-turbo-q5_0.bin)" = '574041195'
+
+          curl -fL --retry 5 --retry-all-errors \
+            -o models/ggml-medium.en-q5_0.bin \
+            'https://huggingface.co/ggerganov/whisper.cpp/resolve/c521a4b02f422512d734391fdf08bb08c0862f68/ggml-medium.en-q5_0.bin?download=true'
+          echo '76733e26ad8fe1c7a5bf7531a9d41917b2adc0f20f2e4f5531688a8c6cd88eb0  models/ggml-medium.en-q5_0.bin' | sha256sum -c -
+          sha256sum models/*.bin | tee artifacts/MODEL_SHA256.txt
+
+      - name: Primary ASR — Whisper large-v3-turbo Q5_0
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$WHISPER_LIB_DIR:${LD_LIBRARY_PATH:-}"
+          mkdir -p raw
+          /usr/bin/time -v "$CLI" \
+            -m models/ggml-large-v3-turbo-q5_0.bin \
+            -f work/FamilyAccessMotionx2_16k_mono.wav \
+            -l en -t 2 -p 1 -bs 5 -bo 5 -tp 0.0 -tpi 0.2 \
+            -sns -sow \
+            --prompt 'Verbatim English family-court and legal conversation. Preserve names, dates, family access motion, custody, Missouri, attorney, interruptions, false starts, repetitions, and profanity exactly as heard. Do not summarize.' \
+            -ojf -osrt -ovtt -otxt \
+            -of raw/PRIMARY_LARGE_V3_TURBO \
+            -pp 2>&1 | tee artifacts/PRIMARY_RUN.log
+          test -s raw/PRIMARY_LARGE_V3_TURBO.json
+
+      - name: Secondary ASR — Whisper medium.en Q5_0
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$WHISPER_LIB_DIR:${LD_LIBRARY_PATH:-}"
+          /usr/bin/time -v "$CLI" \
+            -m models/ggml-medium.en-q5_0.bin \
+            -f work/FamilyAccessMotionx2_16k_mono.wav \
+            -l en -t 2 -p 1 -bs 5 -bo 5 -tp 0.0 -tpi 0.2 \
+            -sns -sow \
+            --prompt 'Verbatim English family-court and legal conversation. Preserve names, dates, family access motion, custody, Missouri, attorney, interruptions, false starts, repetitions, and profanity exactly as heard. Do not summarize.' \
+            -ojf -osrt -ovtt -otxt \
+            -of raw/SECONDARY_MEDIUM_EN \
+            -pp 2>&1 | tee artifacts/SECONDARY_RUN.log
+          test -s raw/SECONDARY_MEDIUM_EN.json
+
+      - name: Build verbatim transcript and forensic QC ledger
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, re, hashlib, pathlib, statistics
+          from difflib import SequenceMatcher
+
+          ROOT = pathlib.Path('.')
+          ART = ROOT / 'artifacts'
+          RAW = ROOT / 'raw'
+          p = json.loads((RAW/'PRIMARY_LARGE_V3_TURBO.json').read_text(encoding='utf-8'))
+          s = json.loads((RAW/'SECONDARY_MEDIUM_EN.json').read_text(encoding='utf-8'))
+          ps = p.get('transcription', [])
+          ss = s.get('transcription', [])
+
+          def ms_to_hms(ms):
+              ms = int(ms or 0)
+              h, rem = divmod(ms, 3600000)
+              m, rem = divmod(rem, 60000)
+              sec, milli = divmod(rem, 1000)
+              return f'{h:02d}:{m:02d}:{sec:02d}.{milli:03d}'
+
+          def seg_bounds(seg):
+              o = seg.get('offsets') or {}
+              return int(o.get('from') or 0), int(o.get('to') or 0)
+
+          def clean(t):
+              return ' '.join(re.findall(r"[a-z0-9']+", (t or '').lower()))
+
+          def lexical_tokens(seg):
+              out=[]
+              for tok in seg.get('tokens') or []:
+                  text = tok.get('text','')
+                  if text.startswith('[_') and text.endswith('_]'):
+                      continue
+                  if not re.search(r'[A-Za-z0-9]', text):
+                      continue
+                  try: prob=float(tok.get('p'))
+                  except Exception: continue
+                  out.append((text, prob, tok.get('offsets') or {}))
+              return out
+
+          def overlap_secondary(a,b):
+              pieces=[]
+              for x in ss:
+                  xa, xb=seg_bounds(x)
+                  if xb > a and xa < b:
+                      t=(x.get('text') or '').strip()
+                      if t: pieces.append(t)
+              return ' '.join(pieces)
+
+          flags=[]
+          repeated=[]
+          prev_norm=''
+          primary_word_count=0
+          for i, seg in enumerate(ps):
+              a,b=seg_bounds(seg)
+              text=(seg.get('text') or '').strip()
+              primary_word_count += len(re.findall(r"\b[\w']+\b", text))
+              toks=lexical_tokens(seg)
+              probs=[x[1] for x in toks]
+              avg=sum(probs)/len(probs) if probs else None
+              lows=[x for x in toks if x[1] < 0.45]
+              alt=overlap_secondary(a,b)
+              sim=SequenceMatcher(None, clean(text), clean(alt)).ratio() if (text or alt) else 1.0
+              reasons=[]
+              if probs and avg < 0.67:
+                  reasons.append(f'primary_mean_token_p={avg:.3f}')
+              if len(lows) >= 2:
+                  reasons.append(f'{len(lows)} lexical tokens p<0.45')
+              if text and alt and len(clean(text)) >= 12 and sim < 0.68:
+                  reasons.append(f'primary_secondary_similarity={sim:.3f}')
+              n=clean(text)
+              if n and prev_norm and len(n) > 10 and SequenceMatcher(None,n,prev_norm).ratio() > 0.97:
+                  reasons.append('near-duplicate consecutive segment')
+                  repeated.append((a,b,text))
+              if n: prev_norm=n
+              if reasons:
+                  flags.append({
+                      'index': i, 'from_ms': a, 'to_ms': b, 'text': text,
+                      'secondary': alt, 'similarity': sim, 'mean_token_p': avg,
+                      'low_tokens': [{'text':x[0], 'p':x[1], 'offsets':x[2]} for x in lows],
+                      'reasons': reasons,
+                  })
+
+          # Verbatim transcript: primary ASR wording is left untouched.
+          with (ART/'FamilyAccessMotionx2_VERBATIM_TIMESTAMPED.md').open('w', encoding='utf-8') as f:
+              f.write('# FamilyAccessMotionx2 — Verbatim Timestamped Transcript\n\n')
+              f.write('Primary decode: whisper.cpp v1.9.1 + Whisper large-v3-turbo Q5_0. The wording below is not grammar-cleaned or paraphrased. Speaker identities are not invented.\n\n')
+              for seg in ps:
+                  a,b=seg_bounds(seg); text=(seg.get('text') or '').strip()
+                  if text: f.write(f'[{ms_to_hms(a)} – {ms_to_hms(b)}] {text}\n\n')
+
+          with (ART/'FamilyAccessMotionx2_TRANSCRIPT.txt').open('w', encoding='utf-8') as f:
+              for seg in ps:
+                  a,b=seg_bounds(seg); text=(seg.get('text') or '').strip()
+                  if text: f.write(f'[{ms_to_hms(a)}] {text}\n')
+
+          # Copy native subtitle and raw ASR files without editorial alteration.
+          for src, dst in [
+              (RAW/'PRIMARY_LARGE_V3_TURBO.srt', ART/'FamilyAccessMotionx2.srt'),
+              (RAW/'PRIMARY_LARGE_V3_TURBO.vtt', ART/'FamilyAccessMotionx2.vtt'),
+              (RAW/'PRIMARY_LARGE_V3_TURBO.json', ART/'FamilyAccessMotionx2_PRIMARY_RAW_ASR.json'),
+              (RAW/'SECONDARY_MEDIUM_EN.json', ART/'FamilyAccessMotionx2_SECONDARY_RAW_ASR.json'),
+          ]:
+              if src.exists(): dst.write_bytes(src.read_bytes())
+
+          with (ART/'FamilyAccessMotionx2_UNCERTAIN_SEGMENTS.md').open('w', encoding='utf-8') as f:
+              f.write('# FamilyAccessMotionx2 — Uncertain / Disputed Segment Ledger\n\n')
+              f.write('A flag is a review signal, not an automatic correction. Primary wording remains unchanged in the verbatim transcript. Secondary text is included only as an independent acoustic alternative.\n\n')
+              if not flags:
+                  f.write('No segments crossed the configured confidence/disagreement thresholds.\n')
+              for x in flags:
+                  f.write(f"## {ms_to_hms(x['from_ms'])} – {ms_to_hms(x['to_ms'])}\n")
+                  f.write(f"- Reasons: {', '.join(x['reasons'])}\n")
+                  f.write(f"- Primary large-v3-turbo: {x['text']}\n")
+                  f.write(f"- Secondary medium.en: {x['secondary'] or '[no overlapping secondary text]'}\n")
+                  if x['low_tokens']:
+                      vals=', '.join(f"{q['text'].strip()} ({q['p']:.2f})" for q in x['low_tokens'])
+                      f.write(f'- Low-confidence primary tokens: {vals}\n')
+                  f.write('\n')
+
+          # Source duration and transcript coverage.
+          probe=json.loads((ART/'SOURCE_FFPROBE.json').read_text())
+          duration=float(probe.get('format',{}).get('duration') or 0.0)
+          end_ms=max((seg_bounds(x)[1] for x in ps), default=0)
+          start_ms=min((seg_bounds(x)[0] for x in ps), default=0)
+          gaps=[]
+          last=None
+          for seg in ps:
+              a,b=seg_bounds(seg)
+              if last is not None and a-last > 30000:
+                  gaps.append({'from_ms':last,'to_ms':a,'gap_ms':a-last})
+              last=max(last or 0,b)
+
+          qc={
+              'source_duration_seconds': duration,
+              'primary_model': 'ggml-large-v3-turbo-q5_0.bin',
+              'primary_model_sha256': '394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2',
+              'secondary_model': 'ggml-medium.en-q5_0.bin',
+              'secondary_model_sha256': '76733e26ad8fe1c7a5bf7531a9d41917b2adc0f20f2e4f5531688a8c6cd88eb0',
+              'primary_segments': len(ps),
+              'secondary_segments': len(ss),
+              'primary_words_approx': primary_word_count,
+              'primary_first_offset_ms': start_ms,
+              'primary_last_offset_ms': end_ms,
+              'flagged_segments': len(flags),
+              'near_duplicate_segments': len(repeated),
+              'gaps_over_30s_between_primary_segments': gaps,
+              'speaker_diarization': False,
+              'speaker_note': 'No speaker names or labels were assigned because this run does not have a defensible speaker-identity model.',
+              'verbatim_policy': 'Primary ASR wording retained without grammar cleanup; disagreements are surfaced separately rather than silently rewritten.',
+          }
+          (ART/'FamilyAccessMotionx2_QC_SUMMARY.json').write_text(json.dumps(qc, indent=2), encoding='utf-8')
+
+          with (ART/'FamilyAccessMotionx2_QC_REPORT.md').open('w', encoding='utf-8') as f:
+              f.write('# FamilyAccessMotionx2 — Forensic Transcription QC Report\n\n')
+              f.write('## Decode architecture\n')
+              f.write('- Original Drive MP4 preserved and SHA-256 hashed before analysis.\n')
+              f.write('- Original AAC audio stream preserved losslessly; separate 16 kHz mono PCM WAV created for deterministic ASR.\n')
+              f.write('- Primary: Whisper large-v3-turbo Q5_0 through whisper.cpp v1.9.1, English forced, beam 5 / best-of 5, token timestamps and probabilities retained.\n')
+              f.write('- Secondary: Whisper medium.en Q5_0 with the same decode family, used for disagreement detection.\n')
+              f.write('- Speaker identities were not guessed or invented.\n\n')
+              f.write('## Coverage / quality signals\n')
+              f.write(f'- Source duration: {duration:.3f} seconds.\n')
+              f.write(f'- Primary segments: {len(ps)}; approximate words: {primary_word_count}.\n')
+              f.write(f'- Primary final timestamp: {ms_to_hms(end_ms)}.\n')
+              f.write(f'- QC-flagged segments: {len(flags)}.\n')
+              f.write(f'- Near-duplicate consecutive segments flagged: {len(repeated)}.\n')
+              f.write(f'- >30 second gaps between primary segments: {len(gaps)} (silence is possible; these are coverage checks, not assumed failures).\n\n')
+              f.write('## Interpretation rule\n')
+              f.write('The primary transcript is not silently corrected from context. Low-confidence or cross-model-disputed passages are listed in `FamilyAccessMotionx2_UNCERTAIN_SEGMENTS.md` with the secondary reading so a reviewer can distinguish acoustic evidence from inference.\n')
+
+          provenance={
+              'source': {'drive_file_id':'1Vhpabwlune4FqU0Q8J4Wx7jNX19In4zQ','filename':'FamilyAccessMotionx2.mp4'},
+              'engine': {'name':'whisper.cpp','version':'v1.9.1'},
+              'primary_model': {'file':'ggml-large-v3-turbo-q5_0.bin','sha256':'394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2','source':'KryVenta model release v2.0.0 / upstream whisper.cpp weights'},
+              'secondary_model': {'file':'ggml-medium.en-q5_0.bin','sha256':'76733e26ad8fe1c7a5bf7531a9d41917b2adc0f20f2e4f5531688a8c6cd88eb0','source':'ggerganov/whisper.cpp HF revision c521a4b02f422512d734391fdf08bb08c0862f68'},
+              'audio_derivative':'16 kHz mono PCM s16le',
+              'decode': {'language':'en','threads':2,'beam_size':5,'best_of':5,'temperature':0.0,'temperature_increment':0.2,'suppress_non_speech_tokens':True,'split_on_word':True},
+          }
+          (ART/'FamilyAccessMotionx2_PROVENANCE.json').write_text(json.dumps(provenance, indent=2), encoding='utf-8')
+          print(json.dumps(qc, indent=2))
+          PY
+
+      - name: Package deliverables
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d artifacts ]; then
+            (cd artifacts && zip -9 ../FamilyAccessMotionx2_transcript_bundle.zip ./*)
+          fi
+
+      - name: Upload transcript artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamilyAccessMotionx2-forensic-transcript
+          path: |
+            artifacts/
+            FamilyAccessMotionx2_transcript_bundle.zip
+          if-no-files-found: error
+          retention-days: 3

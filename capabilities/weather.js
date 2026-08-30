@@ -126,6 +126,7 @@ export default {
       },
       ts: { type: "string" },
     },
+    required: ["location", "current", "forecast", "ts"],
   },
 
   async handler(query) {

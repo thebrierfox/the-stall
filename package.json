@@ -1,7 +1,7 @@
 {
   "name": "the-stall",
   "version": "4.97.0",
-  "description": "292 pay-per-call AI data tools via MCP and x402 — no API keys required. YouTube video analytics (engagement rate, view velocity, VIRAL/HIGH_PERFORMING/AVERAGE/UNDERPERFORMING tier), YouTube keyword research (autocomplete + intent clusters), iOS App Store intel, CPI inflation trend signal, short interest squeeze risk, SEC insider trading, institutional ownership, activist investors, M&A intel, VC funding, equity fundamentals, options flow unusual sweep detection, earnings quality Beneish M-Score, on-chain address intelligence, retail sector brief (XRT/XLY/XLP/AMZN/WMT/TGT/COST/HD/LOW with regime classification), and 271+ more. USDC on Base.",
+  "description": "292 pay-per-call AI data tools via MCP and x402 \u2014 no API keys required. YouTube video analytics (engagement rate, view velocity, VIRAL/HIGH_PERFORMING/AVERAGE/UNDERPERFORMING tier), YouTube keyword research (autocomplete + intent clusters), iOS App Store intel, CPI inflation trend signal, short interest squeeze risk, SEC insider trading, institutional ownership, activist investors, M&A intel, VC funding, equity fundamentals, options flow unusual sweep detection, earnings quality Beneish M-Score, on-chain address intelligence, retail sector brief (XRT/XLY/XLP/AMZN/WMT/TGT/COST/HD/LOW with regime classification), and 271+ more. USDC on Base.",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -34,8 +34,30 @@
     "zod": "3.25.76"
   },
   "overrides": {
+    "@solana/buffer-layout-utils": {
+      "bigint-buffer": "file:/home/aegis/intuitek/the-stall/vendor/bigint-buffer-nativefree-0.1.0-local.1.tgz"
+    },
+    "jayson": {
+      "uuid": "11.1.1",
+      "stream-json": "file:/home/aegis/intuitek/the-stall/vendor/stream-json-depthbound-1.9.1-local.1.tgz"
+    },
+    "express": {
+      "qs": "6.16.0"
+    },
+    "body-parser": {
+      "qs": "6.16.0"
+    },
+    "viem": {
+      "ws": "8.21.0"
+    },
+    "@coinbase/cdp-sdk": {
+      "axios": "1.18.0"
+    },
     "mppx": {
-      "express": "$express"
+      "express": {
+        ".": "$express",
+        "qs": "6.16.0"
+      }
     }
   },
   "engines": {

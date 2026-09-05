@@ -259,6 +259,106 @@ export function periodsFromCompanyFacts(companyfacts, period = "quarterly", limi
   });
 }
 
+// Additive IFRS annual support. Do not mix reporting currencies, filing
+// versions, annual/quarterly cadence, or treat absent values as zero.
+const IFRS_ANNUAL_FORMS = new Set(["20-F", "20-F/A", "40-F", "40-F/A"]);
+
+function validFactDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function annualInstantRows(facts, namespace, tag, unit) {
+  const rows = facts?.facts?.[namespace]?.[tag]?.units?.[unit];
+  return (Array.isArray(rows) ? rows : []).filter((row) =>
+    row && IFRS_ANNUAL_FORMS.has(row.form) && row.fp === "FY" &&
+    row.start == null && validFactDate(row.end) && validFactDate(row.filed) && Number.isFinite(row.val));
+}
+
+function coverageError(message, code = "BALANCE_SHEET_COVERAGE_UNAVAILABLE") {
+  const error = badRequest(message);
+  error.code = code;
+  return error;
+}
+
+export function ifrsAnnualBalanceSheet(companyfacts, limit = 4) {
+  const tags = ["Assets", "CurrentAssets", "EquityAttributableToOwnersOfParent", "Equity"];
+  const currencies = new Set();
+  for (const tag of tags) {
+    const units = companyfacts?.facts?.["ifrs-full"]?.[tag]?.units ?? {};
+    for (const unit of Object.keys(units)) {
+      if (/^[A-Z]{3}$/.test(unit) && annualInstantRows(companyfacts, "ifrs-full", tag, unit).length) {
+        currencies.add(unit);
+      }
+    }
+  }
+  if (!currencies.size) return { currency: null, periods: [] };
+  if (currencies.size !== 1) throw coverageError(
+    "Annual IFRS balance-sheet facts contain multiple currencies; a reporting currency cannot be selected safely.",
+    "BALANCE_SHEET_CURRENCY_AMBIGUOUS");
+  const currency = [...currencies][0];
+  const anchorRows = tags.flatMap((tag) => annualInstantRows(companyfacts, "ifrs-full", tag, currency));
+  const dates = [...new Set(anchorRows.map((row) => row.end))].sort((a, b) => b.localeCompare(a));
+  const periods = dates.slice(0, Math.min(4, Math.max(1, Math.trunc(Number(limit) || 4)))).map((end) => {
+    // Prefer the latest complete Assets anchor over a newer comparative equity
+    // fact in a later filing that does not re-report that balance sheet.
+    const atEnd = tags.map((tag) => annualInstantRows(companyfacts, "ifrs-full", tag, currency)
+      .filter((row) => row.end === end)).find((rows) => rows.length);
+    const filed = atEnd.map((row) => row.filed).sort().at(-1);
+    const latest = atEnd.filter((row) => row.filed === filed);
+    const accessions = [...new Set(latest.map((row) => row.accn).filter(Boolean))];
+    if (accessions.length > 1) throw coverageError(
+      "Annual IFRS balance-sheet facts have ambiguous filing versions for one date.", "BALANCE_SHEET_FILING_AMBIGUOUS");
+    const accession = accessions[0];
+    const get = (namespace, tag, unit = currency) => {
+      const rows = annualInstantRows(companyfacts, namespace, tag, unit).filter((row) =>
+        row.end === end && row.filed === filed && (accession ? row.accn === accession : !row.accn));
+      const values = [...new Set(rows.map((row) => row.val))];
+      if (values.length > 1) throw coverageError(
+        "Annual IFRS balance-sheet facts contain conflicting values in one filing.", "BALANCE_SHEET_FACT_AMBIGUOUS");
+      return values[0] ?? null;
+    };
+    const value = (tag) => get("ifrs-full", tag);
+    const currentAssets = value("CurrentAssets");
+    const currentLiabilities = value("CurrentLiabilities");
+    const noncurrentLiabilities = value("NoncurrentLiabilities");
+    const liabilities = value("Liabilities") ?? (Number.isFinite(currentLiabilities) && Number.isFinite(noncurrentLiabilities)
+      ? currentLiabilities + noncurrentLiabilities : null);
+    // Total equity may include non-controlling interests: never substitute it
+    // for equity attributable to the parent's shareholders.
+    const equity = value("EquityAttributableToOwnersOfParent");
+    const intangibles = value("IntangibleAssetsAndGoodwill");
+    return {
+      period_end: end, filed_at: filed,
+      cash: value("CashAndCashEquivalents"), short_term_investments: null,
+      current_assets: currentAssets, total_assets: value("Assets"),
+      current_liabilities: currentLiabilities,
+      // Borrowings/lease tags do not by themselves establish complete debt.
+      total_debt: null, net_debt: null, net_cash: null,
+      total_liabilities: liabilities, stockholders_equity: equity, book_value: equity,
+      retained_earnings: value("RetainedEarnings"), goodwill_intangibles: intangibles,
+      tangible_book_value: Number.isFinite(equity) && Number.isFinite(intangibles) ? equity - intangibles : null,
+      working_capital: Number.isFinite(currentAssets) && Number.isFinite(currentLiabilities) ? currentAssets - currentLiabilities : null,
+      shares_outstanding: get("dei", "EntityCommonStockSharesOutstanding", "shares") ?? get("ifrs-full", "NumberOfSharesOutstanding", "shares"),
+    };
+  });
+  return { currency, periods };
+}
+
+export function balanceSheetFromCompanyFacts(companyfacts, period = "quarterly", limit = 4) {
+  // Preserve existing US-GAAP/USD output byte-for-byte at the value level.
+  const existing = periodsFromCompanyFacts(companyfacts, period, limit);
+  if (existing.length) return { currency: "USD", periods: existing };
+  const annual = ifrsAnnualBalanceSheet(companyfacts, limit);
+  if (annual.periods.length) {
+    if (period !== "annual") throw coverageError(
+      `Quarterly balance-sheet coverage is unavailable from these SEC facts; request period=annual for reported ${annual.currency} annual statements. No quarterly values or currency conversion have been inferred.`);
+    return annual;
+  }
+  throw coverageError("No supported SEC balance-sheet coverage is available for the requested period and issuer.");
+}
+
 export function balanceSheetPollingState(periods, knownLatestPeriodEnd, now = new Date()) {
   const latestPeriodEnd = periods[0]?.period_end ?? null;
   return {
@@ -328,15 +428,14 @@ export default {
     const resolvedPeriod = period === "annual" ? "annual" : "quarterly";
     const maxLimit = Math.min(Math.max(1, Number(limit) || 4), resolvedPeriod === "annual" ? 4 : 8);
     const companyfacts = await getCompanyFacts(symbol, company.cik);
-    const periods = periodsFromCompanyFacts(companyfacts, resolvedPeriod, maxLimit);
-    if (!periods.length) throw new Error(`No SEC balance-sheet facts found for ${symbol}`);
+    const { periods, currency } = balanceSheetFromCompanyFacts(companyfacts, resolvedPeriod, maxLimit);
 
     return {
       ticker: symbol,
       company_name: companyfacts.entityName ?? company.title,
       cik: company.cik,
       period_type: resolvedPeriod,
-      currency: "USD",
+      currency,
       periods,
       source: "SEC EDGAR Companyfacts (data.sec.gov)",
       retrieved_at: new Date().toISOString(),

@@ -14,7 +14,7 @@
 //   3. GET  /v1/fiat/token?session_id=...  -> buyer polls to retrieve their token + credits.
 //   4. fiatGate(...) middleware -> runs BEFORE the x402 paywall. If a valid Bearer token
 //                                 with remaining credits is present on a /cap/* request, it
-//                                 decrements one credit, marks req.fiatPaid=true, and lets the
+//                                 reserves one credit, marks req.fiatPaid=true, and lets the
 //                                 request bypass x402 so the normal cap handler runs.
 //
 // The credit COUNT is authoritative in a server-side JSON ledger (a JWT alone cannot be
@@ -24,6 +24,7 @@
 // mounts nothing, so the x402 rail and boot are unaffected.
 
 import Stripe from "stripe";
+import { createFiatCreditLedger, attachCreditOutcome } from "./fiat-credit-ledger.js";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -144,6 +145,17 @@ export function mountStripeRail(app, { signer, baseUrl, ledgerPath, log = consol
     try { mkdirSync(dirname(ledgerPath), { recursive: true }); writeFileSync(ledgerPath, JSON.stringify(l)); }
     catch (e) { log.error?.("  [stripe-rail] ledger write failed:", e.message); }
   }
+  const creditLedger = createFiatCreditLedger(ledgerPath);
+  let creditRecoveryComplete = false;
+  function ensureCreditRecovery() {
+    if (!creditRecoveryComplete) {
+      creditLedger.recover();
+      creditRecoveryComplete = true;
+    }
+  }
+  try { ensureCreditRecovery(); }
+  catch { log.error?.("  [stripe-rail] prepaid ledger recovery unavailable; valid credit calls will fail closed"); }
+
   // Maps Stripe session id -> { token, jti } so the buyer can fetch their token post-payment.
   const sessionTokens = new Map();
   // IP -> timestamp of last checkout creation (in-memory; resets on server restart).
@@ -300,7 +312,7 @@ export function mountStripeRail(app, { signer, baseUrl, ledgerPath, log = consol
 
   // ── 4. Pre-x402 gate ──────────────────────────────────────────────────────────
   // If a valid fiat token with remaining credit is present on a /cap/* request,
-  // decrement one credit and mark req.fiatPaid so the x402 middleware is bypassed.
+  // reserve one credit; consume on successful completion, release on failure.
   function fiatGate(req, res, next) {
     if (!req.path.startsWith("/cap/")) return next();
     const auth = req.headers.authorization || "";
@@ -310,15 +322,20 @@ export function mountStripeRail(app, { signer, baseUrl, ledgerPath, log = consol
     try { payload = verifyToken(signer, token, { requiredScope: SCOPE }); }
     catch { return next(); } // invalid/expired -> let x402 handle (may still pay in USDC)
 
-    const ledger = loadLedger();
-    const entry = ledger[payload.jti];
-    if (!entry || entry.credits <= 0) {
+    let reservation;
+    try {
+      ensureCreditRecovery();
+      reservation = creditLedger.reserve(payload.jti);
+    } catch {
+      log.error?.("  [stripe-rail] prepaid credit reservation unavailable");
+      return res.status(503).json({ error: "fiat_credit_ledger_unavailable" });
+    }
+    if (!reservation) {
       return res.status(402).json({ error: "fiat_credits_exhausted", message: `Buy more credits: POST ${baseUrl}/v1/fiat/checkout` });
     }
-    entry.credits -= 1;
-    saveLedger(ledger);
     req.fiatPaid = true;
-    res.setHeader("X-Fiat-Credits-Remaining", String(entry.credits));
+    res.setHeader("X-Fiat-Credits-Remaining", String(reservation.remaining));
+    attachCreditOutcome(res, creditLedger, reservation, log);
     return next();
   }
 

@@ -1,0 +1,647 @@
+{
+  "version": 2,
+  "changes": [
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/block-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns block header data (number, hash, timestamp, gas used/limit, base fee, tx count, validator address) for any block on Base, Ethereum, or Arbitrum. Accepts block tag (latest/safe/finalized) or number. Uses public RPC data. $0.034/call.",
+      "before_text_sha256": "9eb8ade93db45c13c0495b9c4ef6393e73a2ec4a191592bc177146707ca2677e",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/clinical-trials",
+      "method": "get",
+      "field": "summary",
+      "after": "Search ClinicalTrials.gov for clinical studies by condition, intervention, or keyword. Returns phase, status, enrollment, sponsor, and dates. NIH primary source — no markup. $0.034/call.",
+      "before_text_sha256": "b2c6a2a958a999b05b01230c3771f05e974821be4597304edd131e57ec763708",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/code-api-surface",
+      "method": "get",
+      "field": "summary",
+      "after": "Analyzes a code snippet and returns its API surface: HTTP routes (method + path), exported symbols, and middleware. Supports Express, FastAPI, Flask, Django, Spring Boot, ASP.NET, Rails, Gin. Pure static analysis — no code execution. Returns JSON with routes[], exports[], middleware[], lang, framework, and a plain-English summary. $0.160/call.",
+      "before_text_sha256": "c886b0c313c13eb368c1b08922e02b35fd4200a264d3705e5509054d20904e1b",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.160"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/commodity-futures",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns live price and intraday metrics for major commodity futures: crude oil, natural gas, gold, silver, copper, platinum, wheat, corn, soybeans, and coffee. Includes price, day high/low, 52-week range, previous close, exchange, and contract name. Filter by commodity name or category (energy/metals/agricultural). $0.059/call — Yahoo Finance free API, no key required.",
+      "before_text_sha256": "92e352adb7eac51605eda7be9383912df6b3602ec19febe22370bbbb9e4bdf1c",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/congressional-trades",
+      "method": "get",
+      "field": "summary",
+      "after": "US Congressional stock trades (STOCK Act disclosures). Two modes: supply a ticker to get all congress member trades in that stock (with excess-return-vs-SPY performance), or omit ticker for recent market-wide congressional activity. Returns representative, party, chamber, transaction type, dollar range, dates, and historical performance vs. SPY. Sourced from Quiver Quant's STOCK Act aggregator — no API key required. $0.117/call.",
+      "before_text_sha256": "34488a9104b7e82054aa59a3ab9579f0e41cbe1018bdb6dc2a5397b98e43e4e3",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.117"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/content-analyze",
+      "method": "get",
+      "field": "summary",
+      "after": "AI-powered URL content analysis. Fetches a URL, extracts the readable article text, and returns structured intelligence: 2–3 sentence summary, key points, named entities with types, sentiment score, topic tags, content type classification, and credibility signals (has author/date/sources). Use for content intelligence pipelines, research synthesis, or automated brief generation. $0.165/call.",
+      "before_text_sha256": "e90d9984827c02d58b8d448afda6fbc0db594d7bdf2d03c1947d59a81a26bf17",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.165"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/crypto-fear-greed",
+      "method": "get",
+      "field": "summary",
+      "after": "Crypto Fear & Greed Index — current score (0=extreme fear, 100=extreme greed), 7-day trend, 30-day min/max/avg, and trading regime signal. Free alternative.me data updated daily. $0.059/call.",
+      "before_text_sha256": "6468f929e669260120d6f85f774007276353558510def973e8a44a8471bd3293",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/crypto-pulse",
+      "method": "get",
+      "field": "summary",
+      "after": "Crypto market pulse — latest Ethereum (or Base) block context plus top crypto gainers and losers by 24h change, in a single call. Returns: block_number, timestamp, gas info (base_fee_gwei, gas_used/limit, tx_count), and top movers (symbol, name, price_usd, change_24h, volume_24h, market_cap). Use for crypto portfolio context, on-chain/market correlation, or pre-trade situational awareness. Free upstream: DRPC + CoinGecko. $0.059/call.",
+      "before_text_sha256": "0be1d0d60a1fc132ffdf894f167d365b3f0eef6a439d21ef811ee6ef5e748e3f",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/defi-market-pulse",
+      "method": "get",
+      "field": "summary",
+      "after": "Combined DeFi yield intelligence and market momentum in one call. $0.059/call. Returns top yield pools from DeFiLlama, crypto and equity market movers, and a cross-signal layer that flags 'boosted' pools (high APY + rising token) vs 'at_risk' pools (high APY + falling token). Use for capital allocation decisions, pre-trade DeFi context, and portfolio rebalancing signals.",
+      "before_text_sha256": "1f374d26b40b7b76a040030d61106ad11321de5ca0fbdb768f37f711bb3cfb14",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/defi-portfolio",
+      "method": "get",
+      "field": "summary",
+      "after": "Multi-chain DeFi portfolio scanner. Returns token holdings and USD values for any EVM wallet across Ethereum, Base, Polygon, and Arbitrum mainnet. Covers ETH, major stablecoins (USDC, USDT, DAI), WBTC, ARB, cbETH, and chain-native assets. Collapses the defi.hugen.tokyo/defi/address seam — 41 payers. $0.059/call.",
+      "before_text_sha256": "1db7fd789f7cb8cec01cdfba7778f12174f260e1cf80a796b4cff8aaef107749",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/defillama-coin-price",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns on-chain aggregated token prices via DefiLlama coins API. Accepts coingecko IDs, contract addresses, or shorthand (eth, btc, sol). Up to 10 tokens per call. $0.059/call.",
+      "before_text_sha256": "f8af3739a1e7cbb04f5463f139633c1af47266eb57af5dbbab2f7e9c1437f74b",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/defillama-pack",
+      "method": "get",
+      "field": "summary",
+      "after": "DeFi research pack: returns TVL, chain breakdown, fees, and native token price for 1–3 protocols in one call. Combines protocol metrics and token prices in one call. $0.059/call. Same DefiLlama upstreams, zero auth.",
+      "before_text_sha256": "47b167fad72f1af0f1a9e935eba514fefb89ca3800a8f6a4197f7cdf57e90767",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/defillama-protocol",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns current TVL, chain breakdown, 24h/7d TVL change, fees, and metadata for any DeFi protocol slug (aave, uniswap-v3, lido, etc.) via DefiLlama. $0.059/call.",
+      "before_text_sha256": "a99c1cb22948b9fa71307e74efc7ffaf66f3a406c78c7acf8f7aace921fc6043",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/dex-swap-quote",
+      "method": "get",
+      "field": "summary",
+      "after": "Best-route DEX swap quote across 20+ chains via Li.Fi aggregator. Returns expected output, exchange rate, gas cost, price impact, and route (DEX/bridge names). Works for same-chain and cross-chain swaps. Use ETH/USDC/WBTC symbols or ERC-20 addresses. Chains: ethereum, base, polygon, arbitrum, optimism, bsc, avalanche, and more. $0.059/call — free upstream.",
+      "before_text_sha256": "f883311496945e31747b6f1ff924d6e6deafbb21c4be699ed051b2c4ca6b8ce9",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/dividend-calendar",
+      "method": "get",
+      "field": "summary",
+      "after": "Upcoming dividend ex-dates from NASDAQ — all stocks going ex-dividend on a given date (default: today) or in the next 1–7 days. Returns symbol, company name, ex-date, record date, payment date, dividend amount, and annual indicated dividend. $0.059/call.",
+      "before_text_sha256": "def310cd49230b90af4b52f3c5525cb29846a7e9a7caaad8d0b9b6cbb39d1a52",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/energy-brief",
+      "method": "get",
+      "field": "summary",
+      "after": "AI-synthesized US energy market intelligence brief. Assembles 9 real-time signals from Yahoo Finance: WTI crude futures, Brent crude (with spread), natural gas (Henry Hub proxy), energy sector ETF (XLE), oil services ETF (OIH), ExxonMobil, Chevron, Marathon Petroleum, and Baker Hughes. Returns 52-week context, Brent/WTI spread, market-regime classification, and a 200-word GPT-4o-mini narrative covering oil regime, dominant risk, and agent decision implications. $0.990/call.",
+      "before_text_sha256": "9110008669ee17be86312470cf2b010a94d97bc667c7a7d006cf1876eb3401bc",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.990"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/etf-holdings",
+      "method": "get",
+      "field": "summary",
+      "after": "Top holdings, sector weights, and asset allocation for any US ETF (SPY, VOO, QQQ, AGG, XLK, etc.). Returns up to 25 positions with weights, sector breakdown, and stock/equity/bond/cash split. No API key. $0.059/call.",
+      "before_text_sha256": "bbf257be68e138d97a197cf3c74e99f6250e04aaba6b8012410216059b48a813",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/eth-block",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns an Ethereum block header and transaction hashes by block number, hex string, or tag (latest/pending/earliest/safe/finalized). Fields: block_number, hash, parent_hash, miner, timestamp_iso, gas_used, gas_limit, base_fee_gwei (EIP-1559), tx_count, transaction_hashes. Supports Ethereum (default), Base, Polygon, and Arbitrum. $0.059/call.",
+      "before_text_sha256": "dc8b398e7fc3f20ea6583193aa398000881e30ec6cd42b611bde7fe302b4c147",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/evm-log-events",
+      "method": "get",
+      "field": "summary",
+      "after": "Query EVM contract event logs via eth_getLogs. Filter by contract address, event topic (signature hash), and block range. Returns up to 50 decoded log entries with topics, data, tx hash, block number. Supports Ethereum/Base/Polygon/Arbitrum via free DRPC. $0.059/call.",
+      "before_text_sha256": "8995706afa62db2e177aa960b7f16752c542b0f3db972b2e7fa06e92dbe34cbc",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/evm-nonce",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns the current nonce (confirmed transaction count) and pending nonce for any EVM wallet address. Supports Ethereum, Base, Polygon, Arbitrum, and Optimism. Use the pending nonce when building new transactions. $0.059/call.",
+      "before_text_sha256": "47f82f9f5067e7a9d3195dd9fabf7127203182e5aeae0802a08ba02d439c469d",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/federal-register-search",
+      "method": "get",
+      "field": "summary",
+      "after": "Search the Federal Register for Rules, Proposed Rules, and Notices matching a keyword — returns title, abstract, document type, agencies, significance, effective date, and links. No API key. $0.034/call.",
+      "before_text_sha256": "5b23468e465640e170f9ce36fc76eedd93544e1f61d956ae8fd069e36bb46036",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/global-equity-indices",
+      "method": "get",
+      "field": "summary",
+      "after": "Global stock market and equity index snapshot: 9 major indices (Nikkei 225, Hang Seng, ASX 200, Nifty 50, Shanghai, FTSE 100, DAX, CAC 40, Euro Stoxx 50) plus DXY. Returns current level, daily % change, 52-week range context, and region posture (bullish/mixed/bearish). Free Yahoo Finance data. No API key. Overnight context for global macro agents and forex positioning. $0.059/call.",
+      "before_text_sha256": "ad3e480e95ffeb7c302d990baf729a557f14edc90c62c6d8e59701bfe301d1f0",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/government-contract-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "Federal government contract award tracker via USASpending.gov (no API key). The U.S. government awards $700B+ annually — this cap surfaces who wins the money, how much, and for what. Mode 'company' (company_name): all federal contracts awarded to a named company — which agencies, what amounts, optional last-N-days filter. Essential for defense/aerospace (Lockheed, Raytheon, Northrop), tech government contractors (Palantir, Leidos, SAIC, Booz Allen), and healthcare (McKesson, UnitedHealth). Mode 'recent' (days, min_amount_millions): market-wide feed of largest new awards in the last N days, optional floor filter. Mode 'agency' (agency_name, days): what contracts has a federal agency (DoD, HHS, NASA, DHS) awarded recently and to whom. All data from FPDS-NG via USASpending.gov, updated daily. $0.021/call.",
+      "before_text_sha256": "2df236275554c9a0c96de683b83d922a45885cda7d430d7f44caccc361daba05",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.021"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/hedge-fund-holdings",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns top stock holdings from any institution's latest SEC 13F filing. Input: institution name (e.g. 'Renaissance Technologies', 'Bridgewater Associates'). Output: top 25 positions by market value with shares, value, and portfolio weight. No API key. SEC EDGAR source. $0.117/call.",
+      "before_text_sha256": "ee35389e90f16f97de6081b2e3f96793f9f4aaadab4d9d2d0636d217f8a88211",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.117"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/image-detect",
+      "method": "get",
+      "field": "summary",
+      "after": "Detects the true image format of any URL via magic byte inspection — works even when the file extension or Content-Type header lies (common with proxied or CDN-hosted images). Returns: format (png/jpeg/gif/webp/avif/bmp/tiff/svg/ico/unknown), detected MIME type, whether Content-Type header matches, file size (bytes), and pixel dimensions for PNG and JPEG. No API key required. $0.070/call.",
+      "before_text_sha256": "90b4c929cbb4b7e68fa6568ed8581ba052a949c85ce2a3d37dd7fa584ccb0330",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.070"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/income-statements",
+      "method": "get",
+      "field": "summary",
+      "after": "Full income statement + cash flow history for any US public stock. Returns quarterly (default, up to 8 periods) or annual (up to 4 years): revenue, COGS, gross profit, R&D, SG&A, operating income, EBITDA, pretax income, tax, net income, EPS (basic/diluted), operating cash flow, capex, free cash flow. $0.295/call. Per-ticker, entity-parametric — parallel-safe for batch financial analysis across company lists. Source: Yahoo Finance fundamentals timeseries (free, no API key required).",
+      "before_text_sha256": "fc0e5adea6dbfa43240420610446eab522dbc6f7c3870bdb82477e36e2289b5f",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.295"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/intel-pack",
+      "method": "get",
+      "field": "summary",
+      "after": "Three-source intelligence pack in one x402 call: stock market snapshot (SPY/QQQ/IWM/VIX/risk signal) + top DeFi yield pools by APY + top prediction markets by volume. Replaces three separate calls. $0.110/call. No inputs required.",
+      "before_text_sha256": "f2bae7359e76e5f5d7ddb4a9abb8821426c7d7a4d7267545e7843a2dab6a5b0a",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.110"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/intl-stock-price",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns current stock price and intraday metrics for international stocks (EU, UK, Swiss, Japan, Australia, Canada, Hong Kong, India). Accepts exchange-suffixed tickers (MC.PA for LVMH, SAP.DE for SAP, AZN.L for AstraZeneca) or market shorthand (market=fr, ticker=MC). Sourced from Yahoo Finance — no API key, live during market hours. $0.059/call.",
+      "before_text_sha256": "5a9eba20e4fc232fdbbe773e7da656281261cdffdb494afdcdaab09645171b4b",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/limitless-markets",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns active prediction markets from Limitless Exchange with current Yes/No probabilities. Covers short-duration crypto markets (5-min, 15-min BTC/ETH direction), plus longer-term markets. Returns title, implied yes/no prices, expiration, volume, categories, and slug. $0.034/call — free upstream, no API key.",
+      "before_text_sha256": "444db52aa724c8aa9f0e8edc644db06418452f44ab801f8f4360f68205bfb449",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/merger-acquisition-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "SEC EDGAR M&A activity tracker for US public companies. Mode 'company' (ticker): returns all M&A-related EDGAR filings for that company — incoming tender offers (SC TO-T), going-private transactions (SC 13E-3), merger proxies (DEFM14A/PREM14A), and issuer self-tenders (SC TO-I) — with EDGAR URLs. Mode 'recent': market-wide feed of tender offers, going-private filings, and definitive merger proxies in the last N days. Authoritative SEC government data, updated within minutes of filing acceptance. $0.021/call.",
+      "before_text_sha256": "9c324d635e8209e36382686339724854a35a898bc5528719dc44ede2ace548f0",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.021"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/nonprofit-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "Nonprofit financial intelligence from IRS Form 990 filings via ProPublica Nonprofit Explorer. Mode 'search' (org_name, optional state): find nonprofits by name -- returns EIN, city, state, NTEE category (B=Education, E=Health, T=Philanthropy), revenue, assets, and 501(c) subsection. Mode 'by_ein' (ein): full financial history for a specific organization by 9-digit EIN -- returns up to 10 years of 990 data: total revenue, total expenses, total assets, officer compensation, program service revenue, expense ratio, employee count, and governance flags (audit committee, conflict-of-interest policy, whistleblower policy). Mode 'recent' (optional ntee_code, optional state): browse nonprofits by NTEE sector and/or state. NTEE codes: A=Arts, B=Education, C=Environment, E=Health, G=Disease Research, H=Medical Research, K=Food/Nutrition, L=Housing, P=Human Services, Q=International, T=Philanthropy, X=Religion. Covers 2M+ US nonprofits. Free IRS public data via ProPublica. $0.021/call.",
+      "before_text_sha256": "9829717ec01b02445535f62238ac09f1b10c17d9d2b42d04e8972fe0d4051626",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.021"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/options-snapshot",
+      "method": "get",
+      "field": "summary",
+      "after": "Options intelligence snapshot for any US equity — IV30, put/call volume ratio, top calls and puts by trading volume, and unusual-volume flags. Free CBOE delayed data (15-min delay during trading hours), no API key required. Complements us-stock-price and equity-technicals with the options-layer sentiment layer agents need for complete trade context. $0.035/call.",
+      "before_text_sha256": "6b03eecab1d31af64ba0b03abe51e3f9a5fe0a5b6899024f4f15889d74228a83",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.035"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/page-links",
+      "method": "get",
+      "field": "summary",
+      "after": "Extracts all hyperlinks from a webpage. Fetches the target URL, resolves relative links to absolute URLs, and classifies each as internal (same domain) or external. Filter by all/external/internal, cap results with limit. Returns page title, total link count before filtering, and a structured array of {href, text, is_external, domain}. $0.034/call. Upstream: direct HTTP fetch, no API key.",
+      "before_text_sha256": "c7046090216ab422e4d20dfab8d040f3e6b49220b94b2c2b79b1e5de46a3dd65",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/patent-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "USPTO patent intelligence for any company or keyword. Mode 'company' (ticker or company name): recent granted patents assigned to that company — accepts US stock ticker (resolved via SEC EDGAR) or free-form assignee name. Returns title, abstract excerpt (≤400 chars), grant date, filing date, CPC technology section labels (e.g., 'H – Electricity', 'G – Physics'), CPC group codes, inventor names, and a Google Patents link. Mode 'search' (query): full-text keyword search across all USPTO patent titles and abstracts — useful for finding who is innovating in a technology area (e.g., 'transformer neural network', 'solid state battery'). Covers all US granted patents from 1976 to within ~2 weeks of present. Data source: USPTO PatentsView API (public domain, no API key). $0.021/call.",
+      "before_text_sha256": "3237feee8e1aab5f2a0389187aa9880fceb58b11346db477feb9c22987c9836d",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.021"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/polymarket-accuracy-score",
+      "method": "get",
+      "field": "summary",
+      "after": "Historical Polymarket crowd accuracy score: % of markets where the final crowd majority correctly predicted the outcome, plus Brier score (calibration quality). Breakdowns by category — crypto, politics, sports, macro, equities, ai. Filter by category and lookback days. $0.034/call. Source: Polymarket public API (no key required).",
+      "before_text_sha256": "cc3f4807319dfde09322597a57dadf9153a4079852a52d3d90f11c9a9bab2cb7",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/polymarket-category-performance",
+      "method": "get",
+      "field": "summary",
+      "after": "Polymarket category activity breakdown: volume, liquidity, market count, and top market per category (crypto, politics, sports, ai, macro, equities). Shows where trading activity is concentrated. Optionally filter to one category. $0.034/call. Source: Polymarket public API (no key required).",
+      "before_text_sha256": "ec48d08aa47258c57efcc9a594ae7a1be5a190dbf6de0b14fb03bf32d32e0520",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/polymarket-sentiment-shift",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns Polymarket prediction markets with the biggest recent probability shifts — useful for detecting sudden consensus changes on elections, crypto prices, and macro outcomes. Sorted by absolute 1-week change by default. Each result includes current probability, price change, volume, and resolution date. $0.040/call — free upstream.",
+      "before_text_sha256": "9748d2b55b845670889cd6cf2a822258185e00289c65e6c269929a4cef836240",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.040"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/prediction-markets",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns top active Polymarket prediction markets sorted by trading volume. Includes crowd-sourced outcome probabilities (0–1), USDC volume, liquidity, and resolution date. Filter by keyword. Use this to gauge market consensus on events before making decisions. $0.07/call — free upstream, no API key.",
+      "before_text_sha256": "47b6517b1471126ec8302a2c86b67e70d5ced503a29127c4a3bec041854cf26d",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.07"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/prediction-stock-pulse",
+      "method": "get",
+      "field": "summary",
+      "after": "One call returns prediction market sentiment (Limitless Exchange) + live equity price for a specified ticker. Collapses the prediction-market → stock-price agent chain into a single x402 payment. $0.059/call. Inputs: ticker (required), query (optional keyword filter for prediction markets).",
+      "before_text_sha256": "ee8246ff22f8ebb8e20a990e37401b0b778904bd4f60ad8087c79c38401ad023",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/readable-content",
+      "method": "get",
+      "field": "summary",
+      "after": "Fetches any public URL and returns the full readable article text as clean Markdown, stripped of navigation, ads, and boilerplate. Returns title, published date (if available), and the complete body ready for LLM summarization, analysis, or RAG ingestion. $0.034/call.",
+      "before_text_sha256": "f290d84eddf30b18f0d30172454570e61e3b952a2b4fb270f24d0e7a56eaa4ef",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.034"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/social-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns public profile data for any social platform account. Pass a profile URL (platform auto-detected) or platform + username. Supports GitHub, Reddit, HackerNews, Twitter/X, npm, and Open Graph fallback for any URL. Returns name, bio, follower/karma counts, creation date, and platform-specific metrics. $0.059/call.",
+      "before_text_sha256": "e5fd35c1f81598365ec3241644251cbf4e3005d6e77a445a0474b153fbdfee56",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/sports-prediction",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns today's (or a given date's) sports games with team win-loss records, venue, scheduled time, and live score. Supports MLB, NBA, NFL, NHL, NCAAF, NCAAB. Sourced from ESPN public API — no key required. $0.059/call. Use before prediction-markets or sports-content tasks to get accurate team context.",
+      "before_text_sha256": "ae958b7f3640084820fdd285a431d6c5d31b1025c1dcfe22ba1e59dee12559ff",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/stock-brief",
+      "method": "get",
+      "field": "summary",
+      "after": "US stock snapshot + Limitless prediction market sentiment in one call. Returns current stock price, intraday change, volume, 52-week range for any NYSE/NASDAQ ticker, plus any active Limitless prediction markets matching the ticker keyword (direction bets, price level markets). Single-call alternative to separate limitless-markets + stock-price calls. Free upstream — no API key required. $0.035/call.",
+      "before_text_sha256": "047cee2338ed270982ad48a162d17ebdcf75650a14e7320e8743efedd37774a9",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.035"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/stock-ohlcv",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns historical OHLCV (open/high/low/close/volume) candlestick data for a stock, ETF, or index. Supports intervals from 1-minute to monthly and ranges from 1 day to max history. Use for chart analysis, trend detection, and quantitative backtesting. $0.059/call — free upstream, no API key.",
+      "before_text_sha256": "7c2f79bc0ea1428435ddabf844ec7c3fccdfebc70af41d1ea09cdd6f1d177419",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/strategy-signal",
+      "method": "get",
+      "field": "summary",
+      "after": "Technical analysis signal for any US stock, ETF, or crypto. Returns RSI(14), MACD(12/26/9), Bollinger Bands(20), volume trend, directional posture (STRONG_BUY/BUY/NEUTRAL/SELL/STRONG_SELL), and key price levels. $0.110/call. Free upstream: Yahoo Finance (equities), CoinGecko (crypto).",
+      "before_text_sha256": "6b4d4777ff25bd79d9536eeffed784823d83d816960564f06702c57101d9ef51",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.110"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/tx-intel",
+      "method": "get",
+      "field": "summary",
+      "after": "Decode and explain any EVM transaction — in one x402 payment. Returns: transaction status, type (ETH transfer / ERC20 transfer / swap / approval / contract call), human-readable summary, token transfers parsed from logs, gas cost, block context, and explorer URL. Collapses the observed tx-explainer + onesource/block agent seam (18 wallets, 8-day persistence). Supports Base (default), Ethereum, Arbitrum, Optimism, Polygon, Avalanche, BSC. Free upstream: DRPC + public RPC nodes. $0.031/call.",
+      "before_text_sha256": "c1a9049ea35103877e27bfa557cfc34e0f3e4b63fa6183bb6cb2a43ebfa848b9",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.031"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/us-stock-history",
+      "method": "get",
+      "field": "summary",
+      "after": "Historical OHLCV bars for any US stock, ETF, or index. TradingView-compatible resolution (D, W, M, 60, 15, 5, 1). Pass Unix timestamps for from/to. $0.059/call — no API key required. Use us-stock-price for live quotes; equity-technicals for indicators.",
+      "before_text_sha256": "ec6bc6c3c4382d82b3f6cf253ea4b90d06cfd89deb1f9d3b88e5cfa65779f98b",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "reviewed_price_copy_correction",
+      "path": "/cap/wallet-balance",
+      "method": "get",
+      "field": "summary",
+      "after": "Returns the native token balance (ETH, POL, BNB) for any EVM wallet address. Supports Ethereum, Base, Polygon, Arbitrum, Optimism, and BSC. Includes optional USD value. $0.059/call. Free upstreams: DRPC + CoinGecko, no API key required.",
+      "before_text_sha256": "88b701fa9460533f02dbef594d3a03a2a53280a64b138ee413fb412ca93438b2",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.059"
+      }
+    },
+    {
+      "kind": "add_usage_guidance",
+      "after": "Call capability GET routes with the query parameters declared for each operation. For a public company's reported cash, debt, assets, liabilities and equity, use /cap/balance-sheet with ticker; cash-flow-statement answers a different question about cash flows over a reporting period. Balance-sheet monitoring is caller-operated polling: retain latest_period_end and use the declared known_latest_period_end input on a later call. The endpoint does not schedule jobs or send notifications. Its period comparison does not establish whether values for an existing period were revised. For market breadth use /cap/market-breadth; for dealer gamma exposure use /cap/market-gex. Read each operation's source, freshness, input and output descriptions before selecting it. The current research-synthesis output does not include a claim-to-source citation map. Declared USD prices are in each operation's x-payment-info; obtain the current runtime payment challenge before paying."
+    },
+    {
+      "kind": "clarify_cash_debt_intent_and_polling_boundary",
+      "path": "/cap/balance-sheet",
+      "method": "get",
+      "field": "summary",
+      "after": "Quarterly or annual balance-sheet history from issuer-filed SEC EDGAR XBRL facts for a public-company ticker. Use for questions such as: How much cash and debt did Apple report last quarter? Returns cash, investments, assets, debt, liabilities, equity, retained earnings, tangible book value, working capital, and shares outstanding across reported periods. Source: SEC Companyfacts API. For caller-operated polling, pass known_latest_period_end from the prior response and poll again after next_poll_after_utc. The period flag identifies a later reporting period; it does not detect revisions to values within the same period. No background monitoring or notifications.",
+      "before_text_sha256": "ce8dde76cb37c31eb8dcbd40f84a4462512aa5abb8a4d832ca6ff7260da14e65",
+      "expected_declared_price": {
+        "mode": "fixed",
+        "currency": "USD",
+        "amount": "0.021"
+      }
+    }
+  ]
+}
+

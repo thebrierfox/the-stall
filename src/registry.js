@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
+import { applyReviewedDiscoveryMetadata } from "./discovery-metadata.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CAP_DIR = join(__dirname, "..", "capabilities");
@@ -56,7 +57,7 @@ export async function loadCapabilities() {
     const mod = (await import(pathToFileURL(join(CAP_DIR, file)).href)).default;
     const cap = validate(mod, file);
     if (disabled.has(cap.name)) continue;
-    caps.push(cap);
+    caps.push(applyReviewedDiscoveryMetadata(cap));
   }
   return caps;
 }

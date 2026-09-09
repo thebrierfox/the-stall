@@ -29,6 +29,7 @@ import { exec } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadCapabilities } from "./registry.js";
+import { DISCOVERY_GUIDANCE } from "./discovery-metadata.js";
 import {
   attachObservationContext,
   observationFields,
@@ -784,6 +785,7 @@ app.get("/openapi.json", (_req, res) => {
       description: `Domain-agnostic x402 capability chassis by IntuiTek¹. ${capabilities.length} AI-callable data services — pay USDC on Base mainnet. No accounts or API keys required.`,
       version: PKG_VERSION,
       contact: { url: BASE_URL },
+      "x-guidance": DISCOVERY_GUIDANCE,
     },
     "x-discovery": { ownershipProofs: PAY_TO ? [PAY_TO] : [] },
     servers: [{ url: BASE_URL, description: "Production (Base mainnet)" }],

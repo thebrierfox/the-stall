@@ -46,7 +46,6 @@ import { mountThe402Rail } from "./the402-rail.js";
 import { loadSigner } from "./retainer/token.js";
 import { buildSolanaRailMiddleware, SOLANA_WALLET } from "./solana-rail.js";
 import { buildPolygonRailMiddleware, POLYGON_WALLET, POLYGON_USDC } from "./polygon-rail.js";
-import { buildPayAICanaryMiddleware } from "./payai-canary.js";
 
 function parseJsonlLog(filePath) {
   try {
@@ -1464,8 +1463,8 @@ app.use(stripeRail.fiatGate);
 const x402Middleware = buildPaymentMiddleware({ payTo: PAY_TO, network: NETWORK, facilitator: FACILITATOR, capabilities });
 const solanaRailMiddleware = buildSolanaRailMiddleware(capabilities);
 const polygonRailMiddleware = buildPolygonRailMiddleware(capabilities);
-// T3-1 Move #3: PayAI facilitator canary (ping cap, 30d window 2026-07-07→2026-08-06)
-const payAICanaryMiddleware = buildPayAICanaryMiddleware(capabilities, SOLANA_WALLET, PAY_TO);
+// The legacy PayAI ping interceptor is quarantined: its broad rail advertisement
+// contradicted current governance. Ping uses the same canonical x402 gate as all caps.
 const STALL_INTERNAL_KEY = process.env.STALL_INTERNAL_KEY || null;
 
 // Anomaly #130/#159: /cap/* had no rate limiting. Must sit BEFORE the payment/paywall
@@ -1488,15 +1487,11 @@ app.use((req, res, next) => {
     req._internalBypass = true;
     return next();
   }
-  // PayAI canary intercepts /cap/ping only; falls through to next() for all other paths
-  payAICanaryMiddleware(req, res, () => {
-    if (req.payment) return next(); // PayAI canary already verified + settling — skip downstream paywalls
-    polygonRailMiddleware(req, res, () => {
-      if (req._polygonRail) return next(); // Polygon payment verified upstream
-      solanaRailMiddleware(req, res, () => {
-        if (req._solanaRail) return next(); // Solana payment verified upstream
-        return x402Middleware(req, res, next);
-      });
+  polygonRailMiddleware(req, res, () => {
+    if (req._polygonRail) return next(); // Polygon payment verified upstream
+    solanaRailMiddleware(req, res, () => {
+      if (req._solanaRail) return next(); // Solana payment verified upstream
+      return x402Middleware(req, res, next);
     });
   });
 });

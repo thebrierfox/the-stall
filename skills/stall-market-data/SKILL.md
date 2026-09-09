@@ -1,7 +1,7 @@
 ---
 name: stall-market-data
-description: Live stock prices, earnings, analyst & crypto market data
-version: 2.0.0
+description: Discover current market-data component contracts and explicit per-call payment requirements
+version: 2.0.1
 author: IntuiTek¹ (W. Kyle Million)
 license: MIT
 platforms: [linux, macos, windows]
@@ -22,7 +22,9 @@ metadata:
 
 # STALL Market Data
 
-Authoritative multi-source market data through [The Stall](https://the-stall.intuitek.ai) — 200+ paid caps via standard HTTP-402 payment. Payment is handled by your agent's own wallet/payment skill (stripe-link-cli or mpp-agent) — this skill holds no credentials.
+Discover market-data components through [The Stall](https://the-stall.intuitek.ai). The [live catalog](https://the-stall.intuitek.ai/catalog) is the authority for enabled components, raw input/output contracts and declared prices; do not assume every source is authoritative or real-time. [Commercial descriptors](https://the-stall.intuitek.ai/commercial-descriptors.json) distinguish reviewed limits from unknown legacy semantics. This skill holds no credentials and never authorizes payment by itself.
+
+The [MCP server card](https://the-stall.intuitek.ai/.well-known/mcp/server-card.json) describes the MCP tool inventory, including free ping and free payment recovery. Paid execution follows the actual challenge and fulfillment contract. The [A2A agent card](https://the-stall.intuitek.ai/.well-known/agent-card.json) covers payment recovery only; market-data execution uses HTTP or MCP.
 
 ## When to Use
 
@@ -35,7 +37,7 @@ Authoritative multi-source market data through [The Stall](https://the-stall.int
 
 Python 3.8+. No additional packages required.
 
-Your agent needs a payment skill (stripe-link-cli or mpp-agent) to settle HTTP-402 challenges. No wallet key is read by this skill.
+Paid calls require a caller-authorized compatible payment tool. Inspect the [current payment-method registry](https://the-stall.intuitek.ai/v1/payment-methods) and actual challenge. Do not pay, sign, or retry with payment without explicit caller authority. No wallet key is read by this skill.
 
 ## Quick Reference
 
@@ -46,30 +48,26 @@ SCRIPT=${HERMES_SKILL_DIR}/scripts/stall_client.py
 python3 $SCRIPT caps
 
 # Probe a cap (returns 402 challenge if payment needed)
-python3 $SCRIPT call us-stock-price --ticker AAPL
+python3 $SCRIPT call balance-sheet --ticker AAPL
 
 # Submit payment token after your payment skill settles the 402
-python3 $SCRIPT call us-stock-price --ticker AAPL --x-payment <token>
+python3 $SCRIPT call balance-sheet --ticker AAPL --x-payment <token>
 ```
 
 ## Procedure
 
-1. Run `caps` to see the full catalog with prices. Pick the cap that fits the need.
+1. Run `caps` to see the enabled catalog with current prices. Check its raw schema and commercial descriptor; pick a component only if its input, source, temporal scope and output fit the need.
 2. Run `call <cap>` — if payment is needed, a 402 challenge is returned as JSON.
-3. Pass the challenge to your payment skill (stripe-link-cli / mpp-agent) to settle.
+3. Preserve the actual challenge. Pass it to a compatible payment tool only with the caller's explicit authorization; otherwise report the payment gate.
 4. Re-run `call <cap>` with `--x-payment <token>` to get the data.
 
-## Top Caps for Equity Research
+## Selecting a Component
 
-| Cap | Price | What it returns |
-|-----|-------|-----------------|
-| `us-stock-price` | $0.001 | Live price, volume, change |
-| `stock-price-multi` | $0.007 | Batch prices for multiple tickers |
-| `earnings-calendar` | $0.005 | Upcoming earnings by week/ticker |
-| `earnings-estimates` | $0.010 | EPS consensus + surprise history |
-| `analyst-upgrades` | $0.010 | Recent buy/sell/hold changes |
-| `balance-sheet` | $0.010 | Annual/quarterly financial statements |
-| `research-synthesis` | $0.289 | AI synthesis across multiple sources |
+- For a US public company's reported cash and debt, inspect `balance-sheet`; retain the reporting period and source. It provides filing-period lookup, not background monitoring, notifications or amendment detection.
+- For ETF-ratio breadth proxies, inspect `market-breadth`; it is not a count of advancing/declining stocks or a guaranteed real-time exchange feed.
+- For multi-source synthesis, inspect `research-synthesis`. Its legacy report lacks claim-level evidence mapping; model synthesis is not independent verification.
+
+Read current enabled status and prices from the catalog rather than a copied price table. Exact payment amounts, rail fees and eligibility are governed by the runtime challenge. A successful response or declared schema does not itself prove source accuracy, causal benefit or economic contribution.
 
 ## Verification
 

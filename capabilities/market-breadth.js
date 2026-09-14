@@ -64,7 +64,7 @@ async function fetchCloses(ticker) {
   const result = data?.chart?.result?.[0];
   if (!result) throw new Error(`YF ${ticker}: no result`);
   const closes = result.indicators?.quote?.[0]?.close ?? [];
-  const valid  = closes.filter(v => v != null && !isNaN(v));
+  const valid  = closes.filter(v => Number.isFinite(v) && v > 0);
   const price  = result.meta?.regularMarketPrice ?? valid[valid.length - 1];
   return { ticker, closes: valid, price };
 }
@@ -208,6 +208,7 @@ export default {
       breadth_summary: { type: "string",  description: "One-line interpretation of the current breadth signal." },
       spy_price:       { type: ["number", "null"], description: "Current SPY price." },
       pairs_computed:  { type: "integer", description: "Number of ratio pairs successfully computed (of 4 attempted)." },
+      data_quality:    { type: "string", enum: ["COMPLETE", "PARTIAL"], description: "PARTIAL means the composite uses fewer than all four breadth pairs." },
       ts:              { type: "string",  description: "ISO 8601 timestamp." },
     },
   },
@@ -236,6 +237,12 @@ export default {
     const pairs = [ewPair, scPair, raPair, mcPair];
     const computed = pairs.filter(Boolean).length;
 
+    if (computed === 0) {
+      const error = new Error("No usable market breadth pairs are available from the upstream data source.");
+      error.status = 503;
+      throw error;
+    }
+
     const score  = breadthScore(ewPair, scPair, raPair, mcPair);
     const regime = regimeLabel(score);
     const summary = breadthSummary(ewPair, scPair, raPair, mcPair, regime);
@@ -247,9 +254,10 @@ export default {
       mid_cap:         mcPair,
       breadth_score:   score,
       breadth_regime:  regime,
-      breadth_summary: summary,
+      breadth_summary: computed < 4 ? `PARTIAL DATA (${computed}/4 pairs): ${summary}` : summary,
       spy_price:       Q["SPY"]?.price ? r2(Q["SPY"].price) : null,
       pairs_computed:  computed,
+      data_quality:    computed === 4 ? "COMPLETE" : "PARTIAL",
       ts:              new Date().toISOString(),
     };
   },

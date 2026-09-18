@@ -266,6 +266,18 @@ export function readMcpPaymentStats() {
   };
 }
 
+// Shared discovery/execution classification; reads configuration, never initializes
+// a facilitator or changes payment authorization and validation gates.
+export function createMcpPaidToolPredicate(mode = getMcpPaymentMode()) {
+  const freeTools = csvSet(process.env.MCP_FREE_TOOLS, DEFAULT_FREE_TOOLS);
+  const canaryTools = csvSet(process.env.MCP_PAID_TOOLS, DEFAULT_CANARY_TOOLS);
+  return (capName) => {
+    if (mode === "off" || freeTools.has(capName)) return false;
+    if (mode === "all") return true;
+    return canaryTools.has(capName);
+  };
+}
+
 export async function createMcpPaymentController(capabilities) {
   const mode = getMcpPaymentMode();
   if (mode !== "off" && process.env.MCP_PAYMENT_AUTHORIZED !== AUTHORIZATION_SENTINEL) {
@@ -279,8 +291,7 @@ export async function createMcpPaymentController(capabilities) {
   const network = toCAIP2(process.env.X402_NETWORK || "base-sepolia");
   const facilitator = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
   const baseUrl = process.env.BASE_URL || "https://the-stall.intuitek.ai";
-  const freeTools = csvSet(process.env.MCP_FREE_TOOLS, DEFAULT_FREE_TOOLS);
-  const canaryTools = csvSet(process.env.MCP_PAID_TOOLS, DEFAULT_CANARY_TOOLS);
+  const isPaid = createMcpPaidToolPredicate(mode);
 
   if (mode !== "off" && (!payTo || !/^0x[a-fA-F0-9]{40}$/.test(payTo))) {
     throw new Error("MCP x402 metering requires a valid WALLET_ADDRESS.");
@@ -312,12 +323,6 @@ export async function createMcpPaymentController(capabilities) {
       }));
     }
     return requirementsByPrice.get(price);
-  }
-
-  function isPaid(capName) {
-    if (freeTools.has(capName)) return false;
-    if (mode === "all") return true;
-    return canaryTools.has(capName);
   }
 
   const paidCapabilities = capabilities.filter(cap => isPaid(cap.name));
@@ -371,6 +376,8 @@ export async function createMcpPaymentController(capabilities) {
           });
         },
         onAfterSettlement: async ({ settlement, paymentPayload }) => {
+          // A facilitator response is not itself proof that settlement succeeded.
+          if (settlement?.success !== true) return;
           writeEvent("settled", {
             tool: cap.name,
             price: cap.price,
@@ -410,7 +417,19 @@ export async function createMcpPaymentController(capabilities) {
             });
           }
           try {
-            const result = await wrapped(params, extra);
+            let result = await wrapped(params, extra);
+            // Some SDK versions return the handler result with success:false in
+            // payment metadata. Never deliver that paid content or count it as income.
+            if (paymentPayload && !result?.isError
+                && result?._meta?.["x402/payment-response"]?.success !== true) {
+              result = {
+                isError: true,
+                content: [{ type: "text", text: "Payment settlement was not confirmed; paid result withheld." }],
+                _meta: { "x402/payment-response": {
+                  success: false, network, errorReason: "settlement_not_confirmed",
+                } },
+              };
+            }
             if (paymentPayload && result?.isError) {
               writeEvent("rejected", {
                 tool: cap.name,

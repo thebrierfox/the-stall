@@ -8,12 +8,20 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
+import { installToolDiscovery, serializeToolDefinitions } from "./mcp-discovery.js";
+import { mcpToolDescriptor } from "./commercial-discovery.js";
 import { runWithAttribution } from "./attribution.js";
 import {
   createMcpPaymentController,
+  createMcpPaidToolPredicate,
   getMcpPaymentMode,
   readMcpPaymentStats,
 } from "./mcp-payment.js";
+import { createValueAcceptanceRegistry } from "./value-acceptance-registry.js";
+import {
+  negotiateForIncident,
+  paymentNegotiationRequestSchema,
+} from "./payment-negotiation.js";
 
 const sseSessions = new Map();
 const runtimeCache = new WeakMap();
@@ -74,7 +82,13 @@ async function createRuntime(capabilities) {
     });
   }
 
-  return { tools, mode: controller.mode, network: controller.network };
+  return {
+    tools,
+    mode: controller.mode,
+    network: controller.network,
+    capabilities,
+    valueAcceptanceRegistry: createValueAcceptanceRegistry(),
+  };
 }
 
 function getRuntime(capabilities) {
@@ -84,24 +98,67 @@ function getRuntime(capabilities) {
   return runtimeCache.get(capabilities);
 }
 
-function buildServer(runtime) {
+function buildServer(runtime, onDefinitions) {
   const server = new McpServer({ name: "The Stall", version: PKG_VERSION });
+  const discoveryEntries = [];
 
   for (const { cap, inputSchema, handler, paid } of runtime.tools) {
     const paymentLabel = paid
       ? `PAID MCP TOOL — ${cap.price} USDC per successful call via native x402. Discovery is free.`
       : "FREE MCP TOOL.";
-    server.registerTool(
+    const registered = server.registerTool(
       cap.name,
       {
         description: `${paymentLabel} ${cap.description}`,
+        annotations: mcpToolDescriptor(cap).annotations,
         inputSchema,
       },
       handler,
     );
+    discoveryEntries.push({ name: cap.name, registered, outputSchema: cap.outputSchema, rawInputSchema: cap.inputSchema });
   }
 
+  const recoveryTool = server.registerTool(
+    "stall-payment-negotiate",
+    {
+      description: "FREE deterministic payment recovery tool. Submit a rescue_id and only non-secret payment capability facts; receive the next VERIFIED_LIVE settlement challenge. Text cannot alter price, payTo, registry status, or security policy.",
+      inputSchema: paymentNegotiationRequestSchema.shape,
+    },
+    async (params) => {
+      const result = negotiateForIncident(params, {
+        capabilities: runtime.capabilities,
+        registry: runtime.valueAcceptanceRegistry,
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result.body, null, 2) }],
+        structuredContent: result.body,
+        isError: result.status !== 200,
+      };
+    },
+  );
+
+  discoveryEntries.push({ name: "stall-payment-negotiate", registered: recoveryTool });
+  installToolDiscovery(server, discoveryEntries);
+  if (onDefinitions) onDefinitions(serializeToolDefinitions(discoveryEntries));
   return server;
+}
+
+// Use the exact registration and serialization path without payment initialization
+// or executable handlers. The card cannot invoke a component or recovery action.
+export function getMcpToolDefinitions(capabilities) {
+  const isPaid = createMcpPaidToolPredicate();
+  const unavailable = async () => { throw new Error("Discovery-only registration"); };
+  let definitions;
+  const server = buildServer({
+    capabilities,
+    valueAcceptanceRegistry: null,
+    tools: capabilities.map(cap => ({
+      cap, inputSchema: buildZodShape(cap.inputSchema),
+      handler: unavailable, paid: isPaid(cap.name),
+    })),
+  }, value => { definitions = value; });
+  void server.close();
+  return definitions;
 }
 
 export function makeSSEHandlers(capabilities) {
@@ -144,11 +201,25 @@ export function makeSSEHandlers(capabilities) {
 
 export function makeMcpHandler(capabilities) {
   return async (req, res) => {
-    const accept = req.headers.accept || "";
-    const wantsJsonOnly = accept.includes("application/json")
-      && !accept.includes("text/event-stream")
-      && !accept.includes("*/*");
-    if (!wantsJsonOnly && (!accept.includes("application/json") || !accept.includes("text/event-stream"))) {
+    const accept = String(req.headers.accept || "").toLowerCase();
+    const ranges = accept.split(",").map(part => {
+      const [type, ...params] = part.trim().split(";").map(value => value.trim());
+      const raw = params.find(value => value.startsWith("q="))?.slice(2);
+      const q = raw === undefined ? 1 : Number(raw);
+      return { type, q: Number.isFinite(q) && q >= 0 && q <= 1 ? q : 0 };
+    });
+    const quality = type => {
+      for (const range of [type, type.split("/")[0] + "/*", "*/*"]) {
+        const matches = ranges.filter(value => value.type === range);
+        if (matches.length) return Math.max(...matches.map(value => value.q));
+      }
+      return 0;
+    };
+    const wantsJsonOnly = quality("application/json") > 0 && quality("text/event-stream") === 0;
+    // The SDK requires both media types even when its JSON response mode is on.
+    // Normalize only the transport-facing header; select the response from the
+    // original client's preferences. Payment metadata and handlers are untouched.
+    if (req.headers.accept !== "application/json, text/event-stream") {
       const normalized = "application/json, text/event-stream";
       req.headers.accept = normalized;
       const newRaw = [];
@@ -170,7 +241,7 @@ export function makeMcpHandler(capabilities) {
     try {
       const runtime = await getRuntime(capabilities);
       server = buildServer(runtime);
-      transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: wantsJsonOnly });
       await server.connect(transport);
       await runWithAttribution(
         req._observationContext,

@@ -1,0 +1,89 @@
+name: STALL buyer entry verification
+on:
+  push:
+    branches: [fix/autonomous-buyer-entry-20260918]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unsigned-buyer-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect public discovery and unpaid challenges only
+        shell: bash
+        run: |
+          mkdir -p evidence/source
+          cp README.md STALL_INTEGRATORS.md package.json evidence/source/
+          python3 - <<'PY'
+          import base64, datetime, hashlib, json, pathlib, urllib.request, urllib.error
+          root=pathlib.Path('evidence')
+          base='https://the-stall.intuitek.ai'
+          summary={'observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'paid_requests':0,'signatures_created':0,'checks':{},'limitations':['Unsigned requests add identified diagnostic traffic to server logs.','No inference of qualified buyer intent or profit from aggregate counters.']}
+          def request(path, payload=None, extra=None):
+              headers={'User-Agent':'IntuiTek-Aegis-Unsigned-Buyer-Diagnostic/20260918','Accept':'application/json, text/event-stream','X-Request-ID':'aegis-buyer-diagnostic-20260918'}
+              if extra: headers.update(extra)
+              data=None if payload is None else json.dumps(payload).encode()
+              if data is not None: headers['Content-Type']='application/json'
+              req=urllib.request.Request(base+path,data=data,headers=headers,method='GET' if data is None else 'POST')
+              try: response=urllib.request.urlopen(req,timeout=20)
+              except urllib.error.HTTPError as e: response=e
+              with response:
+                  status=response.status; h=dict(response.headers); raw=response.read(2097153)
+              if len(raw)>2097152: raise RuntimeError('response exceeds bounded capture')
+              text=raw.decode('utf-8')
+              try: obj=json.loads(text)
+              except json.JSONDecodeError:
+                  events=[json.loads(x[5:].strip()) for x in text.splitlines() if x.startswith('data:') and x[5:].strip()]
+                  obj=events[-1] if events else {'non_json':True}
+              return status,h,obj,hashlib.sha256(raw).hexdigest()
+          for name,path in [('health','/health'),('catalog','/catalog'),('openapi','/openapi.json'),('x402','/.well-known/x402'),('agent','/.well-known/agent.json'),('stats','/stats'),('metrics','/metrics')]:
+              try:
+                  code,headers,obj,digest=request(path)
+                  summary['checks'][name]={'status':code,'sha256':digest}
+                  (root/(name+'.json')).write_text(json.dumps(obj,indent=2))
+              except Exception as e: summary['checks'][name]={'error':type(e).__name__}
+          try:
+              code,headers,obj,digest=request('/cap/earnings-calendar?days_ahead=7')
+              challenge=next((v for k,v in headers.items() if k.lower()=='payment-required'),None)
+              decoded=json.loads(base64.b64decode(challenge)) if challenge else obj
+              summary['checks']['http_unpaid']={'status':code,'payment_required_header':bool(challenge),'x402Version':decoded.get('x402Version'),'accepts':decoded.get('accepts',[]),'sha256':digest}
+              if code!=402: raise RuntimeError('paid HTTP route did not deny unsigned call')
+          except Exception as e: summary['checks']['http_unpaid_error']=type(e).__name__
+          try:
+              init={'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26','capabilities':{},'clientInfo':{'name':'aegis-unsigned-buyer-diagnostic','version':'1.0.0'}}}
+              code,h,obj,_=request('/mcp',init)
+              session=next((v for k,v in h.items() if k.lower()=='mcp-session-id'),None)
+              protocol=obj.get('result',{}).get('protocolVersion','2025-03-26')
+              extra={'MCP-Protocol-Version':protocol}
+              if session: extra['Mcp-Session-Id']=session
+              summary['checks']['mcp_initialize']={'status':code,'protocol':protocol,'server':obj.get('result',{}).get('serverInfo')}
+              code,h,obj,_=request('/mcp',{'jsonrpc':'2.0','id':2,'method':'tools/list','params':{}},extra)
+              tools=obj.get('result',{}).get('tools',[])
+              summary['checks']['mcp_tools']={'status':code,'count':len(tools),'next_cursor_present':bool(obj.get('result',{}).get('nextCursor'))}
+              (root/'mcp-tools.json').write_text(json.dumps(obj,indent=2))
+              target=next(t for t in tools if t.get('name')=='earnings-calendar')
+              code,h,obj,_=request('/mcp',{'jsonrpc':'2.0','id':3,'method':'tools/call','params':{'name':target['name'],'arguments':{}}},extra)
+              result=obj.get('result',{})
+              denied=result.get('isError') is True or 'error' in obj or code==402
+              summary['checks']['mcp_unpaid']={'status':code,'denied':denied,'error_code':obj.get('error',{}).get('code')}
+              if denied: (root/'mcp-challenge.json').write_text(json.dumps(obj,indent=2))
+              else: raise RuntimeError('paid MCP route did not deny unsigned call; output not retained')
+          except Exception as e: summary['checks']['mcp_error']=type(e).__name__
+          (root/'summary.json').write_text(json.dumps(summary,indent=2))
+          print(json.dumps(summary,indent=2))
+          if 'http_unpaid_error' in summary['checks'] or 'mcp_error' in summary['checks']: raise SystemExit(1)
+          PY
+      - name: Buyer client tests when present
+        shell: bash
+        run: |
+          if test -f tests/test_buyer_entry.mjs; then node --test tests/test_buyer_entry.mjs; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stall-buyer-entry-evidence
+          path: evidence/
+          retention-days: 7

@@ -13,11 +13,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Inspect public discovery and unpaid challenges only
         shell: bash
         run: |
-          mkdir -p evidence/source
+          mkdir -p evidence/source/examples evidence/source/tests
           cp README.md STALL_INTEGRATORS.md package.json evidence/source/
+          cp examples/stall-buyer*.mjs evidence/source/examples/
+          cp tests/test_buyer_entry.mjs evidence/source/tests/
           python3 - <<'PY'
           import base64, datetime, hashlib, json, pathlib, urllib.request, urllib.error
           root=pathlib.Path('evidence')
@@ -51,7 +56,7 @@ jobs:
               challenge=next((v for k,v in headers.items() if k.lower()=='payment-required'),None)
               decoded=json.loads(base64.b64decode(challenge)) if challenge else obj
               summary['checks']['http_unpaid']={'status':code,'payment_required_header':bool(challenge),'x402Version':decoded.get('x402Version'),'accepts':decoded.get('accepts',[]),'sha256':digest}
-              if code!=402: raise RuntimeError('paid HTTP route did not deny unsigned call')
+              if code!=402 or decoded.get('x402Version')!=2 or not decoded.get('accepts'): raise RuntimeError('expected unpaid HTTP v2 challenge')
           except Exception as e: summary['checks']['http_unpaid_error']=type(e).__name__
           try:
               init={'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26','capabilities':{},'clientInfo':{'name':'aegis-unsigned-buyer-diagnostic','version':'1.0.0'}}}
@@ -61,6 +66,7 @@ jobs:
               extra={'MCP-Protocol-Version':protocol}
               if session: extra['Mcp-Session-Id']=session
               summary['checks']['mcp_initialize']={'status':code,'protocol':protocol,'server':obj.get('result',{}).get('serverInfo')}
+              if code!=200 or 'result' not in obj: raise RuntimeError('MCP initialization failed')
               code,h,obj,_=request('/mcp',{'jsonrpc':'2.0','id':2,'method':'tools/list','params':{}},extra)
               tools=obj.get('result',{}).get('tools',[])
               summary['checks']['mcp_tools']={'status':code,'count':len(tools),'next_cursor_present':bool(obj.get('result',{}).get('nextCursor'))}
@@ -68,19 +74,51 @@ jobs:
               target=next(t for t in tools if t.get('name')=='earnings-calendar')
               code,h,obj,_=request('/mcp',{'jsonrpc':'2.0','id':3,'method':'tools/call','params':{'name':target['name'],'arguments':{}}},extra)
               result=obj.get('result',{})
-              denied=result.get('isError') is True or 'error' in obj or code==402
+              challenge=result.get('structuredContent',{})
+              if not challenge:
+                  for entry in result.get('content',[]):
+                      if entry.get('type')=='text':
+                          try: challenge=json.loads(entry.get('text',''))
+                          except json.JSONDecodeError: continue
+                          if challenge.get('x402Version')==2: break
+              denied=result.get('isError') is True and challenge.get('x402Version')==2 and bool(challenge.get('accepts'))
               summary['checks']['mcp_unpaid']={'status':code,'denied':denied,'error_code':obj.get('error',{}).get('code')}
               if denied: (root/'mcp-challenge.json').write_text(json.dumps(obj,indent=2))
-              else: raise RuntimeError('paid MCP route did not deny unsigned call; output not retained')
+              else: raise RuntimeError('expected unpaid MCP v2 challenge; output not retained')
           except Exception as e: summary['checks']['mcp_error']=type(e).__name__
           (root/'summary.json').write_text(json.dumps(summary,indent=2))
           print(json.dumps(summary,indent=2))
           if 'http_unpaid_error' in summary['checks'] or 'mcp_error' in summary['checks']: raise SystemExit(1)
           PY
-      - name: Buyer client tests when present
+      - name: Buyer guard tests
         shell: bash
         run: |
-          if test -f tests/test_buyer_entry.mjs; then node --test tests/test_buyer_entry.mjs; fi
+          set -euo pipefail
+          node --check examples/stall-buyer.mjs
+          node --test tests/test_buyer_entry.mjs | tee evidence/unit-tests.tap
+      - name: Actual SDK integration and unsigned client quote
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$PWD"
+          SDK_DIR="$(mktemp -d)"
+          export SDK_DIR
+          trap 'rm -rf "$SDK_DIR"' EXIT
+          python3 - <<'PY'
+          import json, os, pathlib
+          source=json.loads(pathlib.Path('package.json').read_text())['dependencies']
+          keys=['@modelcontextprotocol/sdk','@x402/mcp','@x402/core','@x402/evm','viem']
+          target={'private':True,'type':'module','dependencies':{key:source[key] for key in keys}}
+          pathlib.Path(os.environ['SDK_DIR'],'package.json').write_text(json.dumps(target,indent=2))
+          PY
+          cp examples/stall-buyer*.mjs "$SDK_DIR/"
+          cd "$SDK_DIR"
+          npm install --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0 --json > "$ROOT/evidence/sdk-versions.json"
+          cp package-lock.json "$ROOT/evidence/buyer-package-lock.json"
+          node --test stall-buyer-sdk.test.mjs | tee "$ROOT/evidence/sdk-tests.tap"
+          env -u STALL_BUYER_PRIVATE_KEY node stall-buyer.mjs quote earnings-calendar '{"days_ahead":7,"limit":5}' > "$ROOT/evidence/sdk-live-quote.json"
+          node --input-type=module -e "import fs from 'node:fs'; import {validateQuote} from './stall-buyer.mjs'; const q=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(q.payment_made!==false)throw Error('unexpected payment'); console.log(validateQuote(q.paymentRequired,'earnings-calendar','0.010'));" "$ROOT/evidence/sdk-live-quote.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

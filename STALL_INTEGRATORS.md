@@ -1,106 +1,78 @@
 # STALL Integrator Guide
 
-**Building production agent workflows on The Stall**
+**Machine-to-machine paid capabilities from IntuiTek¹ · W. Kyle Million, founder**
 
-The Stall is an x402 pay-per-call data chassis — agents probe endpoints, pay USDC on Base, receive structured JSON. No accounts, no subscriptions required. This guide covers three proven production workflow patterns.
+Base URL: `https://the-stall.intuitek.ai`. This guide describes the buyer integration, not a guarantee of demand, output quality, or profit. Updated September 18, 2026.
 
----
+## Start with a quote, not a remembered price
 
-## Pattern 1 — Earnings Intelligence Pipeline
+The live catalog and unsigned payment challenge are authoritative for the requested call. Do not sign using prices copied from an old README, a search listing, or an earlier quote. On September 18 the earnings-calendar challenge was **10,000 USDC atoms = 0.010 USDC**, not the 0.001 USDC previously printed here.
 
-**Use case:** Daily earnings research agent, pre-earnings positioning tool, EPS-surprise screener.
+- [`/catalog`](https://the-stall.intuitek.ai/catalog): current capabilities, prices and input/output schemas.
+- [`/openapi.json`](https://the-stall.intuitek.ai/openapi.json): HTTP operations and current payment instructions.
+- [`/.well-known/x402`](https://the-stall.intuitek.ai/.well-known/x402): payment and discovery metadata.
+- [`/mcp`](https://the-stall.intuitek.ai/mcp): streamable HTTP MCP. Discovery is free; paid tool calls require a payment-capable buyer.
 
-### Fastest path: earnings-intel-bundle
+## MCP: connecting is not paying
 
-One call returns earnings dates, EPS beat/miss history, fundamental valuations, and FOMC context for any ticker at $0.08:
+A generic MCP URL configuration can enumerate tools but does not, by itself, create a wallet, authorize spending, or handle an x402 payment challenge. MCP may return **HTTP 200 with `result.isError: true` and an x402 challenge**; that is a denied tool call, not a fulfilled purchase.
 
-```
-GET /cap/earnings-intel-bundle?ticker=AAPL
-```
+Use the included [budget-limited buyer](examples/stall-buyer.mjs), backed by the official `@x402/mcp` client and `@x402/evm` signer. Run from a checkout with the repository dependencies installed. Quote mode does not load or require a signing key:
 
-Returns: `earnings_calendar` + `earnings_surprises` + `fundamentals` + `fomc` in a single response.
-
-### Full pipeline (individual caps)
-
-For agents that need each layer independently or at different cadences:
-
-| Step | Cap | Price | Params | Returns |
-|------|-----|-------|--------|---------|
-| 1 | [earnings-calendar](/cap/earnings-calendar) | $0.001 | `days_ahead=7` | Upcoming report dates + EPS estimates |
-| 2 | [earnings-surprises](/cap/earnings-surprises) | $0.059 | `ticker=AAPL` | Beat/miss history, surprise %, trend |
-| 3 | [equity-fundamentals](/cap/equity-fundamentals) | $0.059 | `ticker=AAPL` | P/E, EV/EBITDA, margins, FCF |
-| 4 | [fomc-tracker](/cap/fomc-tracker) | $0.008 | none | Fed funds rate + next FOMC meeting |
-| 5 | [equity-brief](/cap/equity-brief) | $0.350 | `ticker=AAPL` | AI-synthesized situation brief (optional) |
-
-**Production pattern:** Call earnings-calendar daily to get the upcoming schedule. When a ticker approaches its report date, pre-fetch earnings-surprises + equity-fundamentals in parallel, then call equity-brief for the AI synthesis layer on the morning of the report.
-
----
-
-## Pattern 2 — Market Monitor Agent
-
-**Use case:** Portfolio risk monitor, sector rotation signal, daily market briefing pipeline.
-
-| Cap | Price | Cadence | Signal |
-|-----|-------|---------|--------|
-| [stock-price-multi](/cap/stock-price-multi) | $0.001 | Every 15 min | Price + intraday change across N tickers |
-| [crypto-top-movers](/cap/crypto-top-movers) | $0.001 | Hourly | Top gainers/losers across crypto markets |
-| [fomc-tracker](/cap/fomc-tracker) | $0.008 | Daily | Fed rate + days until next FOMC decision |
-| [sector-rotation](/cap/sector-rotation) | $0.059 | Daily | Relative sector strength (SPY vs sector ETFs) |
-| [credit-spreads](/cap/credit-spreads) | $0.059 | Daily | Investment-grade and HY spread levels |
-| [macro-brief](/cap/macro-brief) | varies | Weekly | Economic regime context |
-
-**Production pattern:** Run stock-price-multi + crypto-top-movers on a polling interval. Run the macro context caps (fomc-tracker, sector-rotation, credit-spreads) once daily. Feed all outputs into a synthesis call (research-synthesis or equity-brief) to produce a daily briefing document.
-
----
-
-## Pattern 3 — Research-Synthesis Chain
-
-**Use case:** Autonomous research agent, due-diligence assistant, news-to-insight pipeline.
-
-### Single-call synthesis
-
-```
-GET /cap/research-synthesis?query=S%26P+500+earnings+outlook+Q3+2026
+```bash
+node examples/stall-buyer.mjs quote earnings-calendar '{"days_ahead":7,"limit":5}'
 ```
 
-Returns a structured intelligence report: executive summary, key findings, market implications, and source attribution — assembled from HN, OpenAlex, Reddit, arXiv, and DuckDuckGo in one $0.309 call.
+For a purchase, the **buyer/operator**, not STALL, supplies `STALL_BUYER_PRIVATE_KEY` through its own secret manager and admits its own budget. Do not paste signing material into chats, scripts, issues, or logs. With that environment set, this command permits at most 0.010 USDC for one logical call:
 
-Comparable research synthesis services charge $1.40+ per call. STALL research-synthesis delivers comparable output at ~1/5th the cost.
+```bash
+node examples/stall-buyer.mjs pay earnings-calendar '{"days_ahead":7,"limit":5}' 0.010 ./earnings-job-001.receipt.jsonl
+```
 
-### Enriched research pipeline
+The client checks the current v2 quote, exact Base USDC scheme, pinned STALL payee, amount ceiling, tool identity and maximum authorization duration **before signing**. It reserves the receipt file exclusively and blocks a second authorization. Reuse the same receipt path for the same logical operation; do not generate a new path merely to get around an uncertain earlier attempt.
 
-| Step | Cap | Purpose |
-|------|-----|---------|
-| 1 | [research-synthesis](/cap/research-synthesis) | Core intelligence report for any topic |
-| 2 | [fact-check](/cap/fact-check) | Verify key claims from synthesis output |
-| 3 | [web-change-monitor](/cap/web-change-monitor) | Track source URLs for subsequent changes |
-| 4 | [arxiv-intel](/cap/arxiv-intel) | Deep technical paper search on a subtopic |
+A timeout or missing/failed receipt is **not permission to pay again**. The reservation stays on disk. Reconcile the original receipt and wallet before any separately authorized retry. The receipt reported by the server is not independently verified chain evidence; the client labels that distinction.
 
----
+The implementation supports one Base USDC offer per challenge. Other currencies, multiple offers, negotiated credit rails and unrecognized token domains fail closed rather than being silently converted.
 
-## x402 Integration
+## HTTP x402 v2
 
-Every STALL endpoint follows the x402 protocol:
+```bash
+curl -i 'https://the-stall.intuitek.ai/cap/earnings-calendar?days_ahead=7&limit=5'
+```
 
-1. Agent calls `GET /cap/<name>?param=value` — receives `402 Payment Required`
-2. Response body contains `{ "x402Version": "1", "accepts": [{ "network": "base-mainnet", "asset": "USDC", "amount": "...", "payTo": "0x..." }] }`
-3. Agent signs a payment via Coinbase CDP facilitator, sends `X-PAYMENT` header
-4. Re-call with payment header — receives `200 OK` with JSON result
+Expected unsigned response: HTTP **402** and a Base64-encoded **`PAYMENT-REQUIRED`** header. Decode it as a v2 `PaymentRequired` object. The current Base offer uses `scheme: "exact"`, `network: "eip155:8453"`, the Base USDC contract, an atomic-unit `amount`, and `payTo`.
 
-**No wallet?** Use prepaid credits instead:
-- `POST /v1/fiat/checkout` with `{ "bundle": "starter" }` → Stripe checkout URL ($5 for 100 credits)
-- `GET /v1/fiat/token?session_id=...` → Bearer token
-- Call any cap with `Authorization: Bearer <token>` — no gas, no signing required
+The buyer validates the offer against its own mandate, then uses its x402 wallet client to produce a **v2 `PaymentPayload`**. Retry the identical operation with that complete payload Base64-encoded in **`PAYMENT-SIGNATURE`**. Do not rename v1 fields, sign an old quote, send a bare signature, or substitute an unrelated transfer transaction hash.
 
----
+`X-PAYMENT` is legacy transport, not the recommended v2 interface. STALL's September 17 compatibility adapter does not convert a v1 authorization into v2 or waive any payment requirement. MCP carries its payment payload in `params._meta["x402/payment"]`, not in an HTTP payment header for an ordinary tool call.
 
-## Full Resources
+After successful settlement, the HTTP response uses `PAYMENT-RESPONSE`; the MCP SDK exposes its payment response separately from tool content. Inspect both the receipt and fulfillment/error state. Server-side execution can precede settlement internally; paid output must remain withheld when settlement fails.
 
-- x402 manifest: `/`.well-known/x402`
-- MCP endpoint: `/mcp` (streamable-http)
-- SSE endpoint: `/sse`
-- Full catalog: `/catalog`
-- OpenAPI spec: `/openapi.json`
-- Cap reference: `/llms.txt`
+## Choosing a useful call
 
-*Updated: 2026-07-03 | 278 caps | Base mainnet*
+These are integration examples, not pre-sold bundles or proven downstream outcomes. Retrieve current schemas and quotes for every step; a purchase of one step does not pay for later steps.
+
+| Objective | Existing starting capability | Example input |
+|---|---|---|
+| Upcoming US earnings | `earnings-calendar` | `{"days_ahead":7,"limit":5}` |
+| Market breadth context | `market-breadth` | Inspect current schema |
+| Aviation weather | `aviation-weather` | Inspect current airport parameter |
+| Research discovery | `research-paper-search` | Inspect current query schema |
+
+The [research sequence](https://the-stall.intuitek.ai/research-funnel.json) describes separately paid components. Do not interpret it as an autonomous ongoing monitor or a guarantee that synthesized claims have been independently verified.
+
+## Other payment methods
+
+Consult the live [`/v1/payment-methods`](https://the-stall.intuitek.ai/v1/payment-methods) registry. A configured or discovery-only method is not proof of a completed acquisition/payment path. Do not assume that a hosted checkout link gives an otherwise unpaid MCP client automatic tool access.
+
+## Verification
+
+```bash
+node --test tests/test_buyer_entry.mjs
+node --test examples/stall-buyer-sdk.test.mjs
+```
+
+The SDK tests use an in-memory server and an invalid synthetic signature: **no on-chain payment**. Unsigned live checks prove discovery and paywall behavior, not outside-payer conversion. A valid paid production receipt, delivery evidence, cost coverage and recurrence are separate acceptance evidence.
+
+Primary SDK reference: [official x402 MCP package](https://github.com/coinbase/x402/tree/main/typescript/packages/mcp). The repository's existing pinned/declared dependencies are used; no production payment middleware, price, source handler, reserve or routing setting is changed by this client.

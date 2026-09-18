@@ -127,13 +127,14 @@ export class CommercialRuntime {
       const episodes=this.store.episodes();
       const executionCosts=executionCostAudit(this.store,episodes);
       await writeProjection(join(this.directory,'execution-costs.json'),executionCosts);
-      const costCoverage=transactionCostCoverage(this.store,episodes,this.incumbent?.contract);
+      const costCoverage=transactionCostCoverage(this.store,episodes,this.incumbent?.contract,executionCosts);
       await writeProjection(join(this.directory,'transaction-costs.json'),costCoverage);
       const report = this.store.summary();
       report.settlement_accounting_policy = CDP_SETTLEMENT_ACCOUNTING;
       report.incumbent_supplier = this.incumbent?.summary() ?? null;
       report.cost_coverage={source:'transaction-costs.json',sha256:hash(JSON.stringify(costCoverage)),
-        complete:costCoverage.complete,transactions:costCoverage.transactions.length,missing_by_class:costCoverage.missing_by_class};
+        complete:costCoverage.complete,transactions:costCoverage.transactions.length,missing_by_class:costCoverage.missing_by_class,
+        usage_coverage:costCoverage.usage_coverage};
       report.recurrence_portfolio=recurrencePortfolio(episodes,this.config.experiments||[],Date.now(),this.config.control_windows||[]);
       report.execution_costs={source:'execution-costs.json',sha256:hash(JSON.stringify(executionCosts)),
         coverage_started_at:executionCosts.coverage_started_at,executions:executionCosts.rows.length,

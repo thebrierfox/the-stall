@@ -1,0 +1,3 @@
+startCommand:
+  type: http
+  url: https://the-stall.intuitek.ai/mcp

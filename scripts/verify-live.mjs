@@ -8,7 +8,7 @@ const expected = {
   network: 'eip155:8453',
   asset: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
   payTo: '0x03d773c52b67993e60ecb3134b17436fe03b584c',
-  marketBreadthAtoms: '31000',
+  balanceSheetAtoms: '21000',
 };
 
 function hash(bytes) {
@@ -51,8 +51,8 @@ assert.equal(health.json?.capabilities?.length, expected.paidCapabilities);
 const catalog = await request('/catalog');
 assert.equal(catalog.response.status, 200);
 assert.equal(catalog.json?.capabilities?.length, expected.paidCapabilities);
-const marketBreadth = catalog.json.capabilities.find((capability) => capability.name === 'market-breadth');
-assert.equal(marketBreadth?.price, '$0.031');
+const balanceSheet = catalog.json.capabilities.find((capability) => capability.name === 'balance-sheet');
+assert.equal(balanceSheet?.price, '$0.021');
 
 const agent = await request('/.well-known/agent.json');
 assert.equal(agent.response.status, 200);
@@ -61,7 +61,7 @@ assert.equal(manifest.response.status, 200);
 assert.equal(manifest.json?.resources?.length, expected.paidCapabilities);
 assert.equal(String(manifest.json?.payTo).toLowerCase(), expected.payTo);
 
-const challenge = await request('/cap/market-breadth');
+const challenge = await request('/cap/balance-sheet?ticker=AAPL');
 assert.equal(challenge.response.status, 402);
 const payment = decodePaymentRequired(challenge.response);
 assert.equal(payment.x402Version, 2);
@@ -70,7 +70,7 @@ assert.equal(payment.accepts[0].scheme, 'exact');
 assert.equal(payment.accepts[0].network, expected.network);
 assert.equal(String(payment.accepts[0].asset).toLowerCase(), expected.asset);
 assert.equal(String(payment.accepts[0].payTo).toLowerCase(), expected.payTo);
-assert.equal(payment.accepts[0].amount, expected.marketBreadthAtoms);
+assert.equal(payment.accepts[0].amount, expected.balanceSheetAtoms);
 
 const initialized = await mcp(1, 'initialize', {
   protocolVersion: '2025-03-26',
@@ -81,13 +81,13 @@ assert.equal(initialized.json?.result?.serverInfo?.name, 'The Stall');
 
 const listed = await mcp(2, 'tools/list');
 assert.equal(listed.json?.result?.tools?.length, expected.mcpTools);
-assert.ok(listed.json.result.tools.some((tool) => tool.name === 'market-breadth'));
+assert.ok(listed.json.result.tools.some((tool) => tool.name === 'balance-sheet'));
 
-const denied = await mcp(3, 'tools/call', { name: 'market-breadth', arguments: {} });
+const denied = await mcp(3, 'tools/call', { name: 'balance-sheet', arguments: { ticker: 'AAPL' } });
 assert.equal(denied.json?.result?.isError, true);
 const mcpPayment = denied.json?.result?.structuredContent;
 assert.equal(mcpPayment?.x402Version, 2);
-assert.equal(mcpPayment?.accepts?.[0]?.amount, expected.marketBreadthAtoms);
+assert.equal(mcpPayment?.accepts?.[0]?.amount, expected.balanceSheetAtoms);
 assert.equal(String(mcpPayment?.accepts?.[0]?.payTo).toLowerCase(), expected.payTo);
 
 console.log(JSON.stringify({
@@ -96,6 +96,6 @@ console.log(JSON.stringify({
   health: { status: health.response.status, sha256: health.sha256, capabilities: expected.paidCapabilities },
   catalog: { status: catalog.response.status, sha256: catalog.sha256, capabilities: expected.paidCapabilities },
   discovery: { agentCard: agent.response.status, x402: manifest.response.status, resources: expected.paidCapabilities },
-  unpaidHttp: { status: challenge.response.status, amount: expected.marketBreadthAtoms, payTo: expected.payTo },
+  unpaidHttp: { status: challenge.response.status, amount: expected.balanceSheetAtoms, payTo: expected.payTo },
   mcp: { initialize: initialized.response.status, tools: expected.mcpTools, unpaidCallIsError: true },
 }, null, 2));

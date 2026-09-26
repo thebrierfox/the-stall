@@ -42,16 +42,20 @@ client packages and reserves a durable receipt file before signing.
 
 ```bash
 # Quote only; no signing key is loaded.
-node examples/stall-buyer.mjs quote earnings-calendar '{"days_ahead":7,"limit":5}'
+node examples/stall-buyer.mjs quote balance-sheet '{"ticker":"AAPL","period":"quarterly"}'
 
 # Paid mode: the operator supplies its own key through its secret manager.
 export STALL_BUYER_PRIVATE_KEY='<buyer-owned key>'
 node examples/stall-buyer.mjs pay \
-  earnings-calendar \
-  '{"days_ahead":7,"limit":5}' \
-  0.010 \
-  ./earnings-job-001.receipt.jsonl
+  balance-sheet \
+  '{"ticker":"AAPL","period":"quarterly"}' \
+  0.021 \
+  ./balance-sheet-job-001.receipt.jsonl
 ```
+
+The ceiling is a buyer limit; check the current challenge before authorizing.
+This example uses SEC EDGAR Companyfacts and returns reported filing periods,
+not a trading recommendation.
 
 Never place signing material in source, chat, issues, command history, or logs.
 The example accepts one logical authorization per receipt path and blocks an

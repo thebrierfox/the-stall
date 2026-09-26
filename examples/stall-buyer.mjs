@@ -99,7 +99,7 @@ export async function buy(tool, args, { ceiling, receiptPath, privateKey }) {
   } finally { await client.close(); }
 }
 async function main() {
-  const [mode = 'quote', tool = 'earnings-calendar', argText = '{}', ceiling, receiptPath] = process.argv.slice(2);
+  const [mode = 'quote', tool = 'balance-sheet', argText = '{"ticker":"AAPL"}', ceiling, receiptPath] = process.argv.slice(2);
   if (!['quote', 'pay'].includes(mode) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(tool)) fail('INVALID_COMMAND');
   if (Buffer.byteLength(argText) > 16384) fail('ARGUMENTS_TOO_LARGE');
   const args = JSON.parse(argText);

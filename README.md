@@ -70,6 +70,11 @@ public/private boundary is documented in [PUBLIC_BOUNDARY.md](PUBLIC_BOUNDARY.md
 
 ## Coinbase Agentic Wallet CLI
 
+This example uses Coinbase **Agentic Wallet** (`awal`), which is separate from
+Coinbase **for Agents** equities MCP and its curated x402 catalog. STALL is not
+listed in that equities catalog; this command uses the Agentic Wallet's own
+USDC balance.
+
 A Coinbase wallet agent can request a sourced check on a company's liquidity,
 debt, and equity from the `balance-sheet` capability before an investment
 decision. The result identifies its SEC EDGAR Companyfacts source, filing

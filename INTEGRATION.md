@@ -89,3 +89,43 @@ npm run verify:live
 The unit tests use an in-memory synthetic server and invalid synthetic signing
 material. They make no real payment. `verify:live` performs unsigned discovery
 and challenge checks only.
+
+### Interface stability across releases
+
+`verify:live` also compares every advertised MCP tool field with
+`manifests/mcp-tools.json`. A change at unchanged tool count fails the check.
+Object-key order and outer tool order are ignored; nested arrays and unknown
+fields are preserved. The canonical profile is compact UTF-8 JSON with sorted
+object keys and tool names, hashed with SHA-256.
+
+Each completed manifest check writes the full observation and old/new field
+differences to `.artifacts/mcp-manifest/`. The existing CI workflow preserves
+these files for seven days, including a failing comparison. The baseline and
+its changes remain in git. No monitor subscription or new dependencies are
+required; no scheduled workflow is added.
+
+An unexpected change is **unreviewed**, not automatically a regression or a
+security issue. Inspect `diff.json` and reconcile it with the intended seller
+release before recording a new baseline. The initial baseline is a dated
+capture of live declarations, not certification of backend behavior.
+
+For an intentional release, use its captured observation and require a release
+identifier and an explanation:
+
+```sh
+node scripts/mcp-manifest.mjs compare \
+  manifests/mcp-tools.json .artifacts/mcp-manifest/observed.json
+node scripts/mcp-manifest.mjs baseline \
+  .artifacts/mcp-manifest/observed.json manifests/mcp-tools.json \
+  'seller-release-id' 'Reviewed change: describe the intended contract update'
+git diff -- manifests/mcp-tools.json
+npm test
+npm run verify:live
+```
+
+Commit the reviewed baseline update with the release evidence. If tools were
+intentionally added or removed, also update the verifier's expected counts.
+The verifier never updates the baseline automatically. A fingerprint without
+the original JSON and fully specified serialization cannot identify which
+field changed; see
+[`manifests/INVESTIGATION_2026-10-10.md`](manifests/INVESTIGATION_2026-10-10.md).

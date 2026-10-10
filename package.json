@@ -5,7 +5,7 @@
   "description": "Public integration examples and discovery verification for The Stall hosted MCP/x402 service.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/test_buyer_entry.mjs examples/stall-buyer-sdk.test.mjs",
+    "test": "node --test tests/test_buyer_entry.mjs tests/test_mcp_manifest.mjs examples/stall-buyer-sdk.test.mjs",
     "verify:live": "node scripts/verify-live.mjs"
   },
   "dependencies": {

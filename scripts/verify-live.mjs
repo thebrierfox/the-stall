@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { BASELINE, observation, recordComparison, toolsFromResponse } from './mcp-manifest.mjs';
 
 const base = 'https://the-stall.intuitek.ai';
 const expected = {
@@ -80,6 +82,22 @@ const initialized = await mcp(1, 'initialize', {
 assert.equal(initialized.json?.result?.serverInfo?.name, 'The Stall');
 
 const listed = await mcp(2, 'tools/list');
+const tools = toolsFromResponse(listed.json);
+const observed = observation(tools, {
+  endpoint: `${base}/mcp`,
+  observedAt: new Date().toISOString(),
+  responseSha256: listed.sha256,
+  requestId: listed.response.headers.get('x-stall-request-id'),
+  verifierRevision: process.env.GITHUB_SHA || null,
+});
+const toolDiff = recordComparison(JSON.parse(readFileSync(BASELINE, 'utf8')), observed);
+console.log(JSON.stringify({ mcpManifest: {
+  status: toolDiff.status, tools: tools.length, sha256: observed.toolsSha256,
+  added: toolDiff.added, removed: toolDiff.removed,
+  changed: toolDiff.changed.map(tool => ({ name: tool.name, paths: tool.changes.map(change => change.path) })),
+  evidence: '.artifacts/mcp-manifest/{observed,diff}.json',
+} }, null, 2));
+assert.ok(toolDiff.matches, 'MCP interface differs from the recorded baseline; review .artifacts/mcp-manifest/diff.json before accepting a release');
 assert.equal(listed.json?.result?.tools?.length, expected.mcpTools);
 assert.ok(listed.json.result.tools.some((tool) => tool.name === 'balance-sheet'));
 

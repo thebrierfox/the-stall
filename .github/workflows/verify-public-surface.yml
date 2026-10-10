@@ -21,3 +21,11 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run verify:live
+      - name: Preserve MCP manifest comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-manifest-${{ github.sha }}
+          path: .artifacts/mcp-manifest/
+          if-no-files-found: ignore
+          retention-days: 7
